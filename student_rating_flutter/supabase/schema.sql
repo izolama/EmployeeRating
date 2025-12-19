@@ -1,0 +1,46 @@
+-- Tables
+create table if not exists public.student (
+  student_id text primary key,
+  student_name text not null,
+  student_class text default '',
+  student_address text default '',
+  student_phone text default ''
+);
+
+create table if not exists public.criteria (
+  criteria_id text primary key,
+  criteria_name text not null,
+  criteria_amount integer not null default 0,
+  criteria_desc text not null default 'core' -- core | secondary
+);
+
+create table if not exists public.rating (
+  rating_id text primary key,
+  student_id text references public.student(student_id) on delete cascade,
+  rating_value jsonb not null default '{}'::jsonb,
+  rating_value2 jsonb not null default '{}'::jsonb
+);
+
+-- Row Level Security (optional but recommended)
+alter table public.student enable row level security;
+alter table public.criteria enable row level security;
+alter table public.rating enable row level security;
+
+-- Simple policies: authenticated users can read/write everything.
+do $$ begin
+  execute 'create policy "Allow all select" on public.student for select using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all insert" on public.student for insert with check (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all update" on public.student for update using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all delete" on public.student for delete using (auth.role() = ''authenticated'')';
+
+  execute 'create policy "Allow all select" on public.criteria for select using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all insert" on public.criteria for insert with check (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all update" on public.criteria for update using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all delete" on public.criteria for delete using (auth.role() = ''authenticated'')';
+
+  execute 'create policy "Allow all select" on public.rating for select using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all insert" on public.rating for insert with check (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all update" on public.rating for update using (auth.role() = ''authenticated'')';
+  execute 'create policy "Allow all delete" on public.rating for delete using (auth.role() = ''authenticated'')';
+exception when others then null;
+end $$;

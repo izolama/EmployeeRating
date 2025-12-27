@@ -141,13 +141,13 @@ class CriteriaScreenState extends State<CriteriaScreen> {
           }
           final criteria = snapshot.data ?? [];
           return ListView(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
             children: [
               AppCard(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 14),
                 child: ListTile(
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   title: const Text(
                     'Persyaratan (Core/Secondary)',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -161,10 +161,10 @@ class CriteriaScreenState extends State<CriteriaScreen> {
               ),
               ...criteria.map(
                 (c) => AppCard(
-                  margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: 14),
                   child: ListTile(
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     title: Text('${c.id} - ${c.name}'),
                     subtitle: Text('Target: ${c.amount} | ${c.desc}'),
                   ),

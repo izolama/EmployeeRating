@@ -146,14 +146,15 @@ class RatingScreenState extends State<RatingScreen> {
     return RefreshIndicator(
       onRefresh: _fetchData,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
         itemCount: _ratings.length,
         itemBuilder: (context, index) {
           final rating = _ratings[index];
           return AppCard(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               title: Text(rating.student.name),
               subtitle: Text(
                 _criteria.asMap().entries.map((entry) {

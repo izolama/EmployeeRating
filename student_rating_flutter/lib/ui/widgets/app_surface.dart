@@ -26,12 +26,12 @@ class AppBackground extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  deepPurple,
-                  midPurple,
-                  Colors.white,
+                colors: const [
+                  Color(0xFF695AE0),
+                  Color(0xFF695AE0),
+                  Color(0xFF695AE0),
                 ],
-                stops: const [0.0, 0.55, 1.0],
+                stops: const [0.0, 0.6, 1.0],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomCenter,
               ),

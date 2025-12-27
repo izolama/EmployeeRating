@@ -69,15 +69,16 @@ class RankingScreenState extends State<RankingScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
         itemCount: _rankings.length,
         itemBuilder: (context, index) {
           final rank = _rankings[index];
           final colorScheme = Theme.of(context).colorScheme;
           return AppCard(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               leading: CircleAvatar(
                 backgroundColor: colorScheme.primary.withOpacity(0.12),
                 child: Text('${index + 1}'),

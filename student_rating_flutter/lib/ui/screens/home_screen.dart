@@ -1,13 +1,14 @@
+import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/services/auth_service.dart';
 import '../widgets/app_surface.dart';
-import 'login_screen.dart';
 import 'criteria_screen.dart';
-import 'students_screen.dart';
-import 'rating_screen.dart';
+import 'login_screen.dart';
 import 'ranking_screen.dart';
+import 'rating_screen.dart';
+import 'students_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,21 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
       GlobalKey<RatingScreenState>();
   final GlobalKey<RankingScreenState> _rankingKey =
       GlobalKey<RankingScreenState>();
+  final _navController = NotchBottomBarController(index: 0);
 
   late final List<Widget> _pages = [
     StudentsScreen(key: _studentsKey),
     CriteriaScreen(key: _criteriaKey),
     RatingScreen(key: _ratingKey),
     RankingScreen(key: _rankingKey),
-    _SettingsPage(onLogout: _signOut),
-  ];
-
-  final _titles = const [
-    'Siswa',
-    'Kriteria',
-    'Penilaian',
-    'Ranking',
-    'Pengaturan',
   ];
 
   AuthService get _auth => AuthService(Supabase.instance.client);
@@ -66,69 +59,54 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: NavigationBar(
-            height: 76,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            shadowColor: Colors.black.withOpacity(0.08),
-            indicatorColor: colorScheme.primary.withOpacity(0.14),
-            selectedIndex: _currentIndex,
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-            onDestinationSelected: (value) {
-              setState(() => _currentIndex = value);
-              switch (value) {
-                case 0:
-                  _studentsKey.currentState?.reload();
-                  break;
-                case 1:
-                  _criteriaKey.currentState?.reload();
-                  break;
-                case 2:
-                  _ratingKey.currentState?.reload();
-                  break;
-                case 3:
-                  _rankingKey.currentState?.reload();
-                  break;
-              }
-            },
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: 'Siswa'),
-              NavigationDestination(
-                  icon: Icon(Icons.list_alt_outlined),
-                  selectedIcon: Icon(Icons.list_alt),
-                  label: 'Kriteria'),
-              NavigationDestination(
-                  icon: Icon(Icons.assignment_outlined),
-                  selectedIcon: Icon(Icons.assignment),
-                  label: 'Penilaian'),
-              NavigationDestination(
-                  icon: Icon(Icons.emoji_events_outlined),
-                  selectedIcon: Icon(Icons.emoji_events),
-                  label: 'Ranking'),
-              NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: 'Setting'),
-            ],
-          ),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
-              onPressed: _signingOut
-                  ? null
-                  : () => _studentsKey.currentState?.showAddDialog(),
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton: null,
+      bottomNavigationBar: AnimatedNotchBottomBar(
+        notchBottomBarController: _navController,
+        color: Colors.transparent,
+        notchColor: Colors.transparent,
+        kIconSize: 26,
+        kBottomRadius: 22,
+        showLabel: true,
+        removeMargins: true,
+        bottomBarHeight: 78,
+        itemLabelStyle: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        bottomBarItems: [
+          BottomBarItem(
+            inActiveItem:
+                Icon(Icons.home_outlined, color: Colors.grey.shade500),
+            activeItem: Icon(Icons.home, color: colorScheme.primary),
+            itemLabel: 'Siswa',
+          ),
+          BottomBarItem(
+            inActiveItem:
+                Icon(Icons.list_alt_outlined, color: Colors.grey.shade500),
+            activeItem: Icon(Icons.list_alt, color: colorScheme.primary),
+            itemLabel: 'Kriteria',
+          ),
+          BottomBarItem(
+            inActiveItem:
+                Icon(Icons.assignment_outlined, color: Colors.grey.shade500),
+            activeItem: Icon(Icons.assignment, color: colorScheme.primary),
+            itemLabel: 'Nilai',
+          ),
+          BottomBarItem(
+            inActiveItem:
+                Icon(Icons.emoji_events_outlined, color: Colors.grey.shade500),
+            activeItem: Icon(Icons.emoji_events, color: colorScheme.primary),
+            itemLabel: 'Ranking',
+          ),
+        ],
+        onTap: (index) {
+          _navController.index = index;
+          _onNavTap(index);
+        },
+      ),
       body: Stack(
         children: [
           AppBackground(
@@ -159,47 +137,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-class _SettingsPage extends StatelessWidget {
-  final Future<void> Function() onLogout;
-
-  const _SettingsPage({required this.onLogout});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 24),
-      children: [
-        AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: colorScheme.primary.withOpacity(0.12),
-                child: Icon(Icons.settings, color: colorScheme.primary),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Pengaturan',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        AppCard(
-          child: ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Keluar'),
-            subtitle: const Text('Kembali ke halaman login'),
-            onTap: () => onLogout(),
-          ),
-        ),
-      ],
-    );
+  void _onNavTap(int value) {
+    setState(() => _currentIndex = value);
+    switch (value) {
+      case 0:
+        _studentsKey.currentState?.reload();
+        break;
+      case 1:
+        _criteriaKey.currentState?.reload();
+        break;
+      case 2:
+        _ratingKey.currentState?.reload();
+        break;
+      case 3:
+        _rankingKey.currentState?.reload();
+        break;
+    }
   }
 }

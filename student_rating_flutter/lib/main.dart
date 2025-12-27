@@ -20,8 +20,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseScheme = ColorScheme.fromSeed(seedColor: const Color(0xFF0BA5E9));
-    final appScheme = baseScheme.copyWith(secondary: const Color(0xFF7C3AED));
+    final baseScheme = ColorScheme.fromSeed(seedColor: const Color(0xFF695ae0));
+    final appScheme = baseScheme.copyWith(secondary: const Color(0xFF695ae0));
 
     return MaterialApp(
       title: 'Student Rating',

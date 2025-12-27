@@ -65,6 +65,7 @@ class RatingScreenState extends State<RatingScreen> {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.black,
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
@@ -79,7 +80,10 @@ class RatingScreenState extends State<RatingScreen> {
             children: [
               Text(
                 'Nilai - ${rating.student.name}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
               const SizedBox(height: 12),
               ...List.generate(_criteria.length, (index) {
@@ -92,12 +96,34 @@ class RatingScreenState extends State<RatingScreen> {
                     decoration: InputDecoration(
                       labelText: '${c.id} - ${c.name}',
                       helperText: 'Target ${c.amount} (${c.desc})',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      helperStyle: const TextStyle(color: Colors.white54),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            const BorderSide(color: Colors.white38, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            const BorderSide(color: Colors.white, width: 1.2),
+                      ),
                     ),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 );
               }),
               const SizedBox(height: 12),
-              ElevatedButton(
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.14),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 onPressed: () async {
                   final newValue = RatingValue(
                     k1: int.tryParse(controllers[0]?.text ?? '') ?? 0,
@@ -138,7 +164,10 @@ class RatingScreenState extends State<RatingScreen> {
           constraints: const BoxConstraints(maxWidth: 420),
           child: AppCard(
             padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            child: const Text('Belum ada data siswa.'),
+            child: const Text(
+              'Belum ada data siswa.',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ),
       );
@@ -155,16 +184,21 @@ class RatingScreenState extends State<RatingScreen> {
             child: ListTile(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              title: Text(rating.student.name),
+              title: Text(
+                rating.student.name,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700),
+              ),
               subtitle: Text(
                 _criteria.asMap().entries.map((entry) {
                   final i = entry.key;
                   final c = entry.value;
                   return '${c.id}: ${_valueByIndex(rating.value, i)}';
                 }).join(' | '),
+                style: const TextStyle(color: Colors.white70),
               ),
               trailing: IconButton(
-                icon: const Icon(Icons.edit),
+                icon: const Icon(Icons.edit, color: Colors.white70),
                 onPressed: () => _openRatingDialog(rating),
               ),
             ),
@@ -207,7 +241,7 @@ class _RatingSkeleton extends StatelessWidget {
             child: Container(
               height: 92,
               decoration: BoxDecoration(
-                color: const Color(0x33E7E7FF),
+                color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -216,9 +250,9 @@ class _RatingSkeleton extends StatelessWidget {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0x35F4F4FF),
+                      color: Colors.white.withOpacity(0.08),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -231,7 +265,7 @@ class _RatingSkeleton extends StatelessWidget {
                           height: 14,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0x35F4F4FF),
+                            color: Colors.white.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(7),
                           ),
                         ),
@@ -240,7 +274,7 @@ class _RatingSkeleton extends StatelessWidget {
                           height: 10,
                           width: 180,
                           decoration: BoxDecoration(
-                            color: const Color(0x2FF4F4FF),
+                            color: Colors.white.withOpacity(0.06),
                             borderRadius: BorderRadius.circular(6),
                           ),
                         ),
@@ -252,7 +286,7 @@ class _RatingSkeleton extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: const Color(0x33FFFFFF),
+                      color: Colors.white.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),

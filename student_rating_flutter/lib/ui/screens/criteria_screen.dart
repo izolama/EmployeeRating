@@ -53,6 +53,7 @@ class CriteriaScreenState extends State<CriteriaScreen> {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.black,
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
@@ -67,40 +68,110 @@ class CriteriaScreenState extends State<CriteriaScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('Tambah Kriteria',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: idCtrl,
-                  decoration: const InputDecoration(labelText: 'Kode (contoh: K1)'),
+                  decoration: InputDecoration(
+                    labelText: 'Kode (contoh: K1)',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white38, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white, width: 1.2),
+                    ),
+                  ),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Kode wajib diisi' : null,
+                  style: const TextStyle(color: Colors.white),
                 ),
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Nama'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white38, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white, width: 1.2),
+                    ),
+                  ),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                  style: const TextStyle(color: Colors.white),
                 ),
                 TextFormField(
                   controller: amountCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Nilai Target (angka)'),
+                  decoration: InputDecoration(
+                    labelText: 'Nilai Target (angka)',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white38, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white, width: 1.2),
+                    ),
+                  ),
                   keyboardType: TextInputType.number,
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Nilai target wajib diisi' : null,
+                  style: const TextStyle(color: Colors.white),
                 ),
                 DropdownButtonFormField<String>(
                   value: descCtrl.text,
                   items: const [
-                    DropdownMenuItem(value: 'core', child: Text('Core')),
-                    DropdownMenuItem(value: 'secondary', child: Text('Secondary')),
+                    DropdownMenuItem(
+                        value: 'core',
+                        child: Text('Core', style: TextStyle(color: Colors.white))),
+                    DropdownMenuItem(
+                        value: 'secondary',
+                        child:
+                            Text('Secondary', style: TextStyle(color: Colors.white))),
                   ],
                   onChanged: (v) => descCtrl.text = v ?? 'core',
-                  decoration: const InputDecoration(labelText: 'Jenis'),
+                  dropdownColor: Colors.black,
+                  decoration: InputDecoration(
+                    labelText: 'Jenis',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white38, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Colors.white, width: 1.2),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton(
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.14),
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
                     await _service.upsertCriteria(
@@ -150,11 +221,23 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   title: const Text(
                     'Persyaratan (Core/Secondary)',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
-                  trailing: ElevatedButton.icon(
+                  trailing: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.12),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     onPressed: _showAddDialog,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add, size: 18),
                     label: const Text('Tambah'),
                   ),
                 ),
@@ -165,8 +248,17 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                   child: ListTile(
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    title: Text('${c.id} - ${c.name}'),
-                    subtitle: Text('Target: ${c.amount} | ${c.desc}'),
+                    title: Text(
+                      '${c.id} - ${c.name}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Target: ${c.amount} | ${c.desc}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ),
                 ),
               ),
@@ -199,7 +291,7 @@ class _CriteriaSkeleton extends StatelessWidget {
               child: Container(
                 height: 78,
                 decoration: BoxDecoration(
-                  color: const Color(0x33E7E7FF),
+                  color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding:
@@ -210,7 +302,7 @@ class _CriteriaSkeleton extends StatelessWidget {
                       height: 16,
                       width: 56,
                       decoration: BoxDecoration(
-                        color: const Color(0x35F4F4FF),
+                        color: Colors.white.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
@@ -233,7 +325,7 @@ class _CriteriaSkeleton extends StatelessWidget {
                             height: 10,
                             width: 120,
                             decoration: BoxDecoration(
-                              color: const Color(0x2FF4F4FF),
+                              color: Colors.white.withOpacity(0.06),
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),

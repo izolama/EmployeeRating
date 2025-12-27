@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 /// Shared gradient background with subtle bubbles.
@@ -17,49 +19,33 @@ class AppBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const deepPurple = Color(0xFF5B4CFF);
-    const midPurple = Color(0xFF6E5DFF);
-    const lightCircle = Color(0xFF8C7DFF);
     return Stack(
       children: [
         Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: const [
-                  Color(0xFF695AE0),
-                  Color(0xFF695AE0),
-                  Color(0xFF695AE0),
-                ],
-                stops: const [0.0, 0.6, 1.0],
-                begin: Alignment.topLeft,
+                colors: [Color(0xFF0C0C12), Color(0xFF14141C)],
+                begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
             ),
           ),
         ),
         Positioned(
-          top: -120,
-          right: -90,
-          child: Container(
-            width: 260,
-            height: 260,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: lightCircle.withOpacity(0.20),
-            ),
+          top: -80,
+          right: -40,
+          child: _BlurSpot(
+            size: 220,
+            color: Colors.white.withOpacity(0.12),
           ),
         ),
         Positioned(
-          top: 120,
-          left: -60,
-          child: Container(
-            width: 190,
-            height: 190,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
-            ),
+          top: 180,
+          left: -50,
+          child: _BlurSpot(
+            size: 180,
+            color: Colors.white.withOpacity(0.08),
           ),
         ),
         Positioned.fill(
@@ -73,6 +59,27 @@ class AppBackground extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BlurSpot extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _BlurSpot({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(color: color),
+        ),
+      ),
     );
   }
 }
@@ -92,31 +99,28 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    const cardTint = Color(0xFFF2EEFF);
-    return Container(
-      margin: margin,
-      padding: padding,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            cardTint.withOpacity(0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.primary.withOpacity(0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          margin: margin,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
+          child: child,
+        ),
       ),
-      child: child,
     );
   }
 }

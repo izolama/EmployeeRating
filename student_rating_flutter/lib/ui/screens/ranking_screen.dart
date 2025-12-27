@@ -62,9 +62,15 @@ class RankingScreenState extends State<RankingScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const _RankingSkeleton();
-    if (_error != null) return Center(child: Text('Error: $_error'));
+    if (_error != null) {
+      return Center(
+        child: Text('Error: $_error', style: const TextStyle(color: Colors.white)),
+      );
+    }
     if (_rankings.isEmpty) {
-      return const Center(child: Text('Belum ada data ranking.'));
+      return const Center(
+        child: Text('Belum ada data ranking.', style: TextStyle(color: Colors.white)),
+      );
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -73,18 +79,27 @@ class RankingScreenState extends State<RankingScreen> {
         itemCount: _rankings.length,
         itemBuilder: (context, index) {
           final rank = _rankings[index];
-          final colorScheme = Theme.of(context).colorScheme;
           return AppCard(
             margin: const EdgeInsets.only(bottom: 14),
             child: ListTile(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               leading: CircleAvatar(
-                backgroundColor: colorScheme.primary.withOpacity(0.12),
+                backgroundColor: Colors.white.withOpacity(0.12),
+                foregroundColor: Colors.white,
                 child: Text('${index + 1}'),
               ),
-              title: Text(rank.studentName),
-              subtitle: Text('Total: ${rank.totalScore.toStringAsFixed(3)}'),
+              title: Text(
+                rank.studentName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: Text(
+                'Total: ${rank.totalScore.toStringAsFixed(3)}',
+                style: const TextStyle(color: Colors.white70),
+              ),
               trailing: FittedBox(
                 alignment: Alignment.centerRight,
                 fit: BoxFit.scaleDown,
@@ -92,11 +107,16 @@ class RankingScreenState extends State<RankingScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('K1 ${rank.k1.toStringAsFixed(1)}'),
-                    Text('K2 ${rank.k2.toStringAsFixed(1)}'),
-                    Text('K3 ${rank.k3.toStringAsFixed(1)}'),
-                    Text('K4 ${rank.k4.toStringAsFixed(1)}'),
-                    Text('K5 ${rank.k5.toStringAsFixed(1)}'),
+                    Text('K1 ${rank.k1.toStringAsFixed(1)}',
+                        style: const TextStyle(color: Colors.white70)),
+                    Text('K2 ${rank.k2.toStringAsFixed(1)}',
+                        style: const TextStyle(color: Colors.white70)),
+                    Text('K3 ${rank.k3.toStringAsFixed(1)}',
+                        style: const TextStyle(color: Colors.white70)),
+                    Text('K4 ${rank.k4.toStringAsFixed(1)}',
+                        style: const TextStyle(color: Colors.white70)),
+                    Text('K5 ${rank.k5.toStringAsFixed(1)}',
+                        style: const TextStyle(color: Colors.white70)),
                   ],
                 ),
               ),
@@ -123,7 +143,7 @@ class _RankingSkeleton extends StatelessWidget {
             child: Container(
               height: 90,
               decoration: BoxDecoration(
-                color: const Color(0x33E7E7FF),
+                color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -132,9 +152,9 @@ class _RankingSkeleton extends StatelessWidget {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0x35F4F4FF),
+                      color: Colors.white.withOpacity(0.08),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -147,7 +167,7 @@ class _RankingSkeleton extends StatelessWidget {
                           height: 14,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0x35F4F4FF),
+                            color: Colors.white.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(7),
                           ),
                         ),
@@ -156,7 +176,7 @@ class _RankingSkeleton extends StatelessWidget {
                           height: 10,
                           width: 160,
                           decoration: BoxDecoration(
-                            color: const Color(0x2FF4F4FF),
+                            color: Colors.white.withOpacity(0.06),
                             borderRadius: BorderRadius.circular(6),
                           ),
                         ),

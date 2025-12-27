@@ -7,15 +7,13 @@ import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
 import 'students_discover_screen.dart';
 
-const _deepPurple = Color(0xFF5B4CFF);
-const _midPurple = Color(0xFF7665FF);
-const _pinkAccent = Color(0xFFFF8FB1);
-const _pinkLight = Color(0xFFFFCCD5);
-const _pinkMid = Color(0xFFFFB3C0);
-const _pinkDark = Color(0xFF660012);
+const _primaryDark = Color(0xFF0A0A0A);
+const _secondaryDark = Color(0xFF121218);
 
 class StudentsScreen extends StatefulWidget {
-  const StudentsScreen({super.key});
+  final ScrollController? scrollController;
+
+  const StudentsScreen({super.key, this.scrollController});
 
   @override
   State<StudentsScreen> createState() => StudentsScreenState();
@@ -160,39 +158,47 @@ class StudentsScreenState extends State<StudentsScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           final students = snapshot.data ?? [];
-          final bottomSpacer = MediaQuery.of(context).padding.bottom + 140;
-          return ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 25, vertical: 8),
-                child: _GreetingHero(
-                  name: _displayName,
-                  greeting: _greetingText(),
+          final bottomSpacer = MediaQuery.of(context).padding.bottom + 120;
+          return CustomScrollView(
+            controller: widget.scrollController,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 25, vertical: 8),
+                  child: _GreetingHero(
+                    name: _displayName,
+                    greeting: _greetingText(),
+                  ),
                 ),
               ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _HeaderSection(
-                    totalStudents: students.length, onAdd: showAddDialog),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: _HeaderSection(
+                      totalStudents: students.length, onAdd: showAddDialog),
+                ),
               ),
-              const SizedBox(height: 14),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _FeatureCard(onAdd: showAddDialog),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: _FeatureCard(onAdd: showAddDialog),
+                ),
               ),
-              const SizedBox(height: 18),
-              _LiveStudentsSection(
-                students: students,
-                onSeeAll: () => _openDiscover(context, students),
-                bottomPadding: 0,
-              ),
-              Container(
-                height: bottomSpacer,
-                color: Colors.white,
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _LiveStudentsSection(
+                  students: students,
+                  onSeeAll: () => _openDiscover(context, students),
+                  bottomPadding: bottomSpacer,
+                ),
               ),
             ],
           );
@@ -293,11 +299,12 @@ class _HeaderSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_pinkLight, _pinkMid],
+          colors: [_secondaryDark, _primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Stack(
         children: [
@@ -318,7 +325,7 @@ class _HeaderSection extends StatelessWidget {
                         Text(
                           'Selamat datang',
                           style: theme.textTheme.labelLarge?.copyWith(
-                            color: _pinkDark.withOpacity(0.8),
+                            color: Colors.white.withOpacity(0.8),
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -326,7 +333,7 @@ class _HeaderSection extends StatelessWidget {
                         Text(
                           'Student Rating',
                           style: theme.textTheme.headlineSmall?.copyWith(
-                            color: _pinkDark,
+                            color: Colors.white,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -335,8 +342,8 @@ class _HeaderSection extends StatelessWidget {
                   ),
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    child: Icon(Icons.school, color: _pinkDark),
+                    backgroundColor: Colors.white.withOpacity(0.16),
+                    child: const Icon(Icons.school, color: Colors.white),
                   ),
                 ],
               ),
@@ -349,25 +356,6 @@ class _HeaderSection extends StatelessWidget {
                     icon: Icons.people_alt_rounded,
                   ),
                   const SizedBox(width: 10),
-                  // FilledButton(
-                  //   style: FilledButton.styleFrom(
-                  //     backgroundColor: Colors.white,
-                  //     foregroundColor: _pinkDark,
-                  //     padding: const EdgeInsets.symmetric(
-                  //         horizontal: 16, vertical: 10),
-                  //     shape: RoundedRectangleBorder(
-                  //         borderRadius: BorderRadius.circular(14)),
-                  //   ),
-                  //   onPressed: onAdd,
-                  //   child: const Row(
-                  //     mainAxisSize: MainAxisSize.min,
-                  //     children: [
-                  //       Icon(Icons.add),
-                  //       SizedBox(width: 6),
-                  //       Text('Tambah'),
-                  //     ],
-                  //   ),
-                  // ),
                 ],
               ),
             ],
@@ -394,13 +382,14 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.black, size: 18),
+          Icon(icon, color: Colors.white, size: 18),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,13 +397,13 @@ class _StatPill extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Colors.black.withOpacity(0.8),
+                      color: Colors.white.withOpacity(0.8),
                     ),
               ),
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -451,7 +440,7 @@ class _HighlightCard extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: _pinkAccent.withOpacity(0.14),
+                color: Colors.white.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
             ),
@@ -462,22 +451,25 @@ class _HighlightCard extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Colors.grey[700],
+                      color: Colors.white70,
                       letterSpacing: 0.1,
                     ),
               ),
               const SizedBox(height: 6),
-              Text(
-                student.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                Text(
+                  student.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: _deepPurple,
+                      color: Colors.white,
                     ),
-              ),
+                ),
               const SizedBox(height: 4),
               Text(
                 student.className ?? '-',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: 10),
               Row(
@@ -486,8 +478,8 @@ class _HighlightCard extends StatelessWidget {
                     label: Text(
                         student.phone.isEmpty ? 'No phone' : student.phone),
                     avatar: const Icon(Icons.phone, size: 16),
-                    backgroundColor: _pinkAccent.withOpacity(0.12),
-                    labelStyle: const TextStyle(color: Colors.black87),
+                    backgroundColor: Colors.white.withOpacity(0.08),
+                    labelStyle: const TextStyle(color: Colors.white70),
                   ),
                   const Spacer(),
                   TextButton(
@@ -517,20 +509,26 @@ class _EmptyCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'Belum ada siswa',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Tambahkan siswa pertama untuk memulai penilaian.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.white70),
           ),
           const SizedBox(height: 12),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: _deepPurple,
+              backgroundColor: Colors.white.withOpacity(0.12),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               shape: RoundedRectangleBorder(
@@ -560,12 +558,7 @@ class _FeatureCard extends StatelessWidget {
         child: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF7B6CF8),
-                Color(0xFF6E60F0),
-                Color(0xFF6153E6),
-              ],
-              stops: [0, 0.55, 1],
+              colors: [Color(0xFF1A1A1F), Color(0xFF0E0E14)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -574,8 +567,7 @@ class _FeatureCard extends StatelessWidget {
             painter: _FeatureCirclePainter(),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white
-                    .withOpacity(0.3), // translucent wash closer to design
+                color: Colors.white.withOpacity(0.08),
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -596,9 +588,9 @@ class _FeatureCard extends StatelessWidget {
                         const Spacer(),
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: Colors.white.withOpacity(0.18),
-                          child:
-                              const Icon(Icons.person_add, color: Colors.white),
+                          backgroundColor: Colors.white.withOpacity(0.16),
+                          child: const Icon(Icons.person_add,
+                              color: Colors.white),
                         ),
                       ],
                     ),
@@ -624,8 +616,8 @@ class _FeatureCard extends StatelessWidget {
                     const SizedBox(height: 18),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF4A38C8),
+                        backgroundColor: Colors.white.withOpacity(0.9),
+                        foregroundColor: _primaryDark,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
                         padding: const EdgeInsets.symmetric(
@@ -670,12 +662,20 @@ class _LiveStudentsSection extends StatelessWidget {
     return Container(
       padding: EdgeInsets.zero,
       margin: EdgeInsets.zero,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.94),
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(34),
           topRight: Radius.circular(34),
         ),
+        border: Border.all(color: Colors.white.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +695,7 @@ class _LiveStudentsSection extends StatelessWidget {
                   child: Text(
                     'Lihat semua',
                     style: TextStyle(
-                      color: _deepPurple,
+                      color: _primaryDark,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -723,18 +723,14 @@ class _LiveStudentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFFFFF), Color(0xFFF7F7FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE6E6FF), width: 1.6),
+        border: Border.all(color: Colors.black.withOpacity(0.04), width: 1.4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 8),
           )
         ],
       ),
@@ -746,7 +742,7 @@ class _LiveStudentCard extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFD9D4FF), Color(0xFFB3A7FF)],
+                colors: [Color(0xFFF5F5F7), Color(0xFFE8E8ED)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -756,7 +752,7 @@ class _LiveStudentCard extends StatelessWidget {
               child: Text(
                 student.name.isNotEmpty ? student.name[0] : '?',
                 style: const TextStyle(
-                  color: Color(0xFF1B1530),
+                  color: _primaryDark,
                   fontWeight: FontWeight.w800,
                   fontSize: 20,
                 ),
@@ -773,7 +769,7 @@ class _LiveStudentCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16.5,
-                    color: Color(0xFF0F0F3E),
+                    color: _primaryDark,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -784,7 +780,7 @@ class _LiveStudentCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Color(0xFF5B4CFF)),
+          Icon(Icons.chevron_right, color: Colors.grey.shade500),
         ],
       ),
     );
@@ -833,10 +829,7 @@ class _StudentsSkeleton extends StatelessWidget {
             child: _ShimmerLiveCard(),
           ),
         ),
-        Container(
-          height: bottomSpacer,
-          color: Colors.white,
-        ),
+        SizedBox(height: bottomSpacer),
       ],
     );
   }

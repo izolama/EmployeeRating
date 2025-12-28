@@ -38,10 +38,10 @@ class StudentsScreenState extends State<StudentsScreen> {
 
   String _greetingText() {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) return 'GOOD MORNING';
-    if (hour >= 12 && hour < 17) return 'GOOD AFTERNOON';
-    if (hour >= 17 && hour < 21) return 'GOOD EVENING';
-    return 'GOOD NIGHT';
+    if (hour >= 5 && hour < 12) return 'Selamat Pagi';
+    if (hour >= 12 && hour < 17) return 'Selamat Siang';
+    if (hour >= 17 && hour < 21) return 'Selamat Sore';
+    return 'Selamat Malam';
   }
 
   String _resolveName() {
@@ -745,7 +745,7 @@ class _FeatureCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'FEATURED',
+                      'Fitur Unggulan',
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: Colors.black54,
                         letterSpacing: 1.4,

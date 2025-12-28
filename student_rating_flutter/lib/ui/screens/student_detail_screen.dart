@@ -1,14 +1,18 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:student_rating_flutter/data/models/ranking.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/criteria.dart';
 import '../../data/models/rating.dart';
 import '../../data/models/student.dart';
+import '../../data/models/badge.dart';
 import '../../data/services/student_service.dart';
+import '../../data/services/badge_service.dart';
 import '../../data/services/criteria_service.dart';
 import '../../data/services/rating_service.dart';
+import '../../logic/badge_generator.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Student student;
@@ -22,6 +26,7 @@ class StudentDetailScreen extends StatefulWidget {
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
   late final CriteriaService _criteriaService;
   late final RatingService _ratingService;
+  late final BadgeService _badgeService;
 
   bool _loading = true;
   String? _error;
@@ -30,6 +35,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   int? _classRank;
   List<_ScoreEntry> _scores = const [];
   List<Criteria> _criteria = const [];
+  List<StudentBadge> _badges = const [];
 
   @override
   void initState() {
@@ -37,6 +43,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final client = Supabase.instance.client;
     _criteriaService = CriteriaService(client);
     _ratingService = RatingService(client, StudentService(client));
+    _badgeService = BadgeService(client);
     _load();
   }
 
@@ -61,6 +68,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       final classIdx =
           classScores.indexWhere((e) => e.student.id == widget.student.id);
 
+      final badges = _generateBadges(scores, idx);
+      await _badgeService.upsertBadges(widget.student.id, badges);
+
       if (!mounted) return;
       setState(() {
         _criteria = criteria;
@@ -68,6 +78,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         _current = current;
         _worldRank = idx == -1 ? null : idx + 1;
         _classRank = classIdx == -1 ? null : classIdx + 1;
+        _badges = badges;
       });
     } catch (e) {
       if (!mounted) return;
@@ -130,6 +141,27 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     return results;
   }
 
+  List<StudentBadge> _generateBadges(List<_ScoreEntry> scores, int currentIdx) {
+    if (currentIdx == -1) return [];
+    final entry = scores[currentIdx];
+    final generator = BadgeGenerator();
+    final rankModel = Ranking(
+      studentName: entry.student.id, // carry id
+      totalScore: entry.totalScore,
+      k1: entry.normalized[0],
+      k2: entry.normalized[1],
+      k3: entry.normalized[2],
+      k4: entry.normalized[3],
+      k5: entry.normalized[4],
+    );
+    return generator.generate(
+      ranking: rankModel,
+      globalRank: currentIdx + 1,
+      totalStudents: scores.length,
+      studentId: entry.student.id,
+    );
+  }
+
   int _valueByIndex(Rating rating, int index) {
     switch (index) {
       case 0:
@@ -184,75 +216,23 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     ? _EmptyState(onBack: () => Navigator.pop(context))
                     : SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+                        padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _HeroCard(student: widget.student),
-                            const SizedBox(height: 14),
-                            _StatsCard(
+                            _HeroStatsCard(
+                              student: widget.student,
                               score: _current!.totalScore,
                               worldRank: _worldRank,
                               classRank: _classRank,
                             ),
-                            const SizedBox(height: 18),
-                            DefaultTabController(
-                              length: 3,
-                              child: Column(
-                                children: [
-                                  TabBar(
-                                    labelColor: Colors.black,
-                                    unselectedLabelColor:
-                                        Colors.black54.withOpacity(0.7),
-                                    labelStyle: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                    ),
-                                    indicator: const _DotIndicator(),
-                                    indicatorSize: TabBarIndicatorSize.label,
-                                    overlayColor: WidgetStateProperty.all(
-                                      Colors.transparent,
-                                    ),
-                                    dividerColor: Colors.transparent,
-                                    tabs: const [
-                                      Tab(text: 'Lencana'),
-                                      Tab(text: 'Statistik'),
-                                      Tab(text: 'Detail'),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  SizedBox(
-                                    height: 360,
-                                    child: TabBarView(
-                                      children: [
-                                        const _BadgesGrid(),
-                                        _StatsChips(
-                                          criteria: _criteria,
-                                          normalized: _current!.normalized,
-                                        ),
-                                        SingleChildScrollView(
-                                          physics:
-                                              const BouncingScrollPhysics(),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              _InfoCard(
-                                                  student: widget.student),
-                                              const SizedBox(height: 14),
-                                              _CriteriaBreakdown(
-                                                criteria: _criteria,
-                                                normalized:
-                                                    _current!.normalized,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 16),
+                            _TabsCard(
+                              criteria: _criteria,
+                              normalized: _current!.normalized,
+                              student: widget.student,
+                              badges: _badges,
+                              embed: false,
                             ),
                             const SizedBox(height: 12),
                           ],
@@ -264,22 +244,286 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 }
 
 class _BadgesGrid extends StatelessWidget {
-  const _BadgesGrid();
+  const _BadgesGrid({required this.badges});
+
+  final List<StudentBadge> badges;
 
   @override
   Widget build(BuildContext context) {
-    final badges = List.generate(
-      6,
-      (i) => _BadgeHex(
-        icon: Icons.star_rounded,
-        label: 'Badge ${i + 1}',
-      ),
-    );
+    if (badges.isEmpty) {
+      return const Center(
+        child: Text(
+          'Belum ada badge',
+          style: TextStyle(color: Colors.black54),
+        ),
+      );
+    }
+    final icons = {
+      'overall': Icons.verified_rounded,
+      'rank': Icons.leaderboard_rounded,
+      'crit_1': Icons.timelapse_rounded,
+      'crit_2': Icons.analytics_rounded,
+      'crit_3': Icons.emoji_emotions_rounded,
+      'crit_4': Icons.star_rate_rounded,
+      'crit_5': Icons.extension_rounded,
+    };
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       alignment: WrapAlignment.center,
-      children: badges,
+      children: badges
+          .map((b) => _BadgeHex(
+                icon: icons[b.code] ?? Icons.shield_rounded,
+                label: _labelFor(b),
+              ))
+          .toList(),
+    );
+  }
+
+  String _labelFor(StudentBadge b) {
+    switch (b.level) {
+      case 'elite':
+        return 'Elite';
+      case 'pro':
+        return 'Pro';
+      case 'rising':
+        return 'Rising';
+      case 'champion':
+        return 'Juara';
+      case 'top3':
+        return 'Top 3';
+      case 'top10pct':
+        return 'Top 10%';
+      case 'gold':
+        return 'Gold';
+      case 'silver':
+        return 'Silver';
+      case 'bronze':
+        return 'Bronze';
+      default:
+        return b.level;
+    }
+  }
+}
+
+class _TabsCard extends StatelessWidget {
+  final List<Criteria> criteria;
+  final List<double> normalized;
+  final Student student;
+  final bool embed;
+  final List<StudentBadge> badges;
+
+  const _TabsCard({
+    required this.criteria,
+    required this.normalized,
+    required this.student,
+    required this.badges,
+    this.embed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: embed
+            ? null
+            : BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.black.withOpacity(0.05)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  )
+                ],
+              ),
+        child: Column(
+          children: [
+            TabBar(
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.black54.withOpacity(0.7),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+              indicator: const _DotIndicator(),
+              indicatorSize: TabBarIndicatorSize.label,
+              overlayColor: WidgetStateProperty.all(
+                Colors.transparent,
+              ),
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(text: 'Lencana'),
+                Tab(text: 'Statistik'),
+                Tab(text: 'Detail'),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 340,
+              child: TabBarView(
+                children: [
+                  _BadgesGrid(badges: badges),
+                  _StatsChips(
+                    criteria: criteria,
+                    normalized: normalized,
+                  ),
+                  SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _InfoCard(student: student),
+                        const SizedBox(height: 14),
+                        _CriteriaBreakdown(
+                          criteria: criteria,
+                          normalized: normalized,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStatsCard extends StatelessWidget {
+  final Student student;
+  final double score;
+  final int? worldRank;
+  final int? classRank;
+
+  const _HeroStatsCard({
+    required this.student,
+    required this.score,
+    required this.worldRank,
+    required this.classRank,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF4F4F6), Color(0xFFDADDE3)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              )
+            ],
+          ),
+          child: Center(
+            child: Text(
+              student.name.isNotEmpty ? student.name[0] : '?',
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFDFDFE), Color(0xFFF1F2F5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Colors.black.withOpacity(0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 26,
+                offset: const Offset(0, 14),
+              )
+            ],
+          ),
+          child: Column(
+            children: [
+              Text(
+                student.name,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                student.className.isNotEmpty
+                    ? student.className
+                    : 'Kelas belum diisi',
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F1F25),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.black.withOpacity(0.08)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    _StatTile(
+                      label: 'Total',
+                      value: score.toStringAsFixed(3),
+                      dark: true,
+                    ),
+                    const _StatDivider(dark: true),
+                    _StatTile(
+                      label: 'Peringkat',
+                      value: worldRank != null ? '#$worldRank' : '-',
+                      dark: true,
+                    ),
+                    const _StatDivider(dark: true),
+                    _StatTile(
+                      label: 'Peringkat Kelas',
+                      value: classRank != null ? '#$classRank' : '-',
+                      dark: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -296,23 +540,24 @@ class _BadgeHex extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 90,
-          height: 100,
+          width: 58,
+          height: 58,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withOpacity(0.08)),
+            color: Colors.black.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
           ),
           child: Center(
-            child: Icon(icon, color: Colors.black87, size: 32),
+            child: Icon(icon, color: Colors.black87, size: 26),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           label,
           style: const TextStyle(
             color: Colors.black54,
             fontWeight: FontWeight.w600,
+            fontSize: 12.5,
           ),
         ),
       ],
@@ -385,20 +630,20 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFEAEAEA), Color(0xFFF7F7F7)],
+          colors: [Color(0xFFFDFDFE), Color(0xFFF1F2F5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withOpacity(0.04)),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
           )
         ],
       ),
@@ -461,16 +706,16 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        color: const Color(0xFF1F1F25),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           )
         ],
       ),
@@ -479,16 +724,19 @@ class _StatsCard extends StatelessWidget {
           _StatTile(
             label: 'Total',
             value: score.toStringAsFixed(3),
+            dark: true,
           ),
-          _StatDivider(),
+          const _StatDivider(dark: true),
           _StatTile(
             label: 'Peringkat',
             value: worldRank != null ? '#$worldRank' : '-',
+            dark: true,
           ),
-          _StatDivider(),
+          const _StatDivider(dark: true),
           _StatTile(
             label: 'Peringkat Kelas',
             value: classRank != null ? '#$classRank' : '-',
+            dark: true,
           ),
         ],
       ),
@@ -499,8 +747,10 @@ class _StatsCard extends StatelessWidget {
 class _StatTile extends StatelessWidget {
   final String label;
   final String value;
+  final bool dark;
 
-  const _StatTile({required this.label, required this.value});
+  const _StatTile(
+      {required this.label, required this.value, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -510,8 +760,8 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.black54,
+            style: TextStyle(
+              color: dark ? Colors.white70 : Colors.black54,
               fontWeight: FontWeight.w700,
               fontSize: 12,
               letterSpacing: 0.4,
@@ -520,8 +770,8 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: dark ? Colors.white : Colors.black87,
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
@@ -533,13 +783,19 @@ class _StatTile extends StatelessWidget {
 }
 
 class _StatDivider extends StatelessWidget {
+  final bool dark;
+
+  const _StatDivider({this.dark = false});
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 1,
       height: 38,
       margin: const EdgeInsets.symmetric(horizontal: 14),
-      color: Colors.black.withOpacity(0.08),
+      color: dark
+          ? Colors.white.withOpacity(0.14)
+          : Colors.black.withOpacity(0.08),
     );
   }
 }

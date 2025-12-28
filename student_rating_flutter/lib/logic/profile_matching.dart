@@ -53,6 +53,12 @@ class ProfileMatchingCalculator {
           normalized = maxValues[i] == 0 ? 0 : value / maxValues[i];
         }
 
+        // Log detail normalisasi untuk debugging.
+        print(
+            '[SAW] ${rating.student.name} | ${c.id}-${c.name} (${isCost ? 'cost' : 'benefit'}) '
+            'value=$value max=${maxValues[i]} min=${minValues[i]} '
+            'normalized=${normalized.toStringAsFixed(4)} weight=${normalizedWeights[i].toStringAsFixed(4)}');
+
         total += normalized * normalizedWeights[i];
         normalizedPerCriteria[i] = normalized;
       }

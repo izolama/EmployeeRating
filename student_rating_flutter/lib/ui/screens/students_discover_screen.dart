@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/student.dart';
 import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
+import 'student_detail_screen.dart';
 
 class StudentsDiscoverScreen extends StatelessWidget {
   final List<Student> students;
@@ -32,11 +33,9 @@ class StudentsDiscoverScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'Discover',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                  'Daftar Siswa',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 CircleAvatar(
@@ -119,7 +118,8 @@ class _SearchBar extends StatelessWidget {
           Expanded(
             child: Text(
               'Cari siswa...',
-              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 16),
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.85), fontSize: 16),
             ),
           ),
           Container(
@@ -175,8 +175,8 @@ class _StudentsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (students.isEmpty) {
       return const Center(
-          child: Text('Belum ada siswa',
-              style: TextStyle(color: Colors.black87)));
+          child:
+              Text('Belum ada siswa', style: TextStyle(color: Colors.black87)));
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
@@ -186,14 +186,14 @@ class _StudentsList extends StatelessWidget {
           child: Row(
             children: [
               Text('Siswa',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800, color: Colors.black)),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800, color: Colors.black)),
               const Spacer(),
               Text('${students.length} total',
-                  style:
-                      Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.grey[600])),
             ],
           ),
         ),
@@ -212,50 +212,65 @@ class _DiscoverStudentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 8),
-            ),
-          ],
-          border: Border.all(color: Colors.black.withOpacity(0.05), width: 1.2),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: const Color(0xFFEAEAEA),
-              child: Text(student.name.isNotEmpty ? student.name[0] : '?',
-                  style:
-                      const TextStyle(color: Colors.black, fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(student.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: Colors.black,
-                      )),
-                  const SizedBox(height: 4),
-                  Text(
-                    _subtitleText(student),
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                ],
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => StudentDetailScreen(student: student),
               ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+              border:
+                  Border.all(color: Colors.black.withOpacity(0.05), width: 1.2),
             ),
-            const Icon(Icons.chevron_right, color: Colors.black54),
-          ],
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: const Color(0xFFEAEAEA),
+                  child: Text(student.name.isNotEmpty ? student.name[0] : '?',
+                      style: const TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(student.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: Colors.black,
+                          )),
+                      const SizedBox(height: 4),
+                      Text(
+                        _subtitleText(student),
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.black54),
+              ],
+            ),
+          ),
         ),
       ),
     );

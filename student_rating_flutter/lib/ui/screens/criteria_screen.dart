@@ -42,6 +42,13 @@ class CriteriaScreenState extends State<CriteriaScreen> {
   }
 
   Future<void> reload() => _load();
+  Future<void> refreshIfEmpty() async {
+    if (_isLoading) return;
+    final data = await _future;
+    if (data.isEmpty) {
+      await _load();
+    }
+  }
 
   Future<void> _showAddDialog() async {
     final idCtrl = TextEditingController();
@@ -49,146 +56,190 @@ class CriteriaScreenState extends State<CriteriaScreen> {
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController(text: 'core');
     final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.black,
+      barrierColor: Colors.black54,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            top: 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Tambah Kriteria',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: idCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Kode (contoh: K1)',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white38, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white, width: 1.2),
-                    ),
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Kode wajib diisi' : null,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Nama',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white38, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white, width: 1.2),
-                    ),
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nama wajib diisi' : null,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                TextFormField(
-                  controller: amountCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Nilai Target (angka)',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white38, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white, width: 1.2),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nilai target wajib diisi' : null,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                DropdownButtonFormField<String>(
-                  value: descCtrl.text,
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'core',
-                        child: Text('Core', style: TextStyle(color: Colors.white))),
-                    DropdownMenuItem(
-                        value: 'secondary',
-                        child:
-                            Text('Secondary', style: TextStyle(color: Colors.white))),
-                  ],
-                  onChanged: (v) => descCtrl.text = v ?? 'core',
-                  dropdownColor: Colors.black,
-                  decoration: InputDecoration(
-                    labelText: 'Jenis',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white38, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Colors.white, width: 1.2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.14),
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    await _service.upsertCriteria(
-                      Criteria(
-                        id: idCtrl.text.trim(),
-                        name: nameCtrl.text.trim(),
-                        amount: int.parse(amountCtrl.text),
-                        desc: descCtrl.text,
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: StatefulBuilder(builder: (context, modalSetState) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                top: 18,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Tambah Kriteria',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: idCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Kode (contoh: K1)',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white38, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white, width: 1.2),
+                        ),
                       ),
-                    );
-                    if (context.mounted) Navigator.pop(context, true);
-                  },
-                  child: const Text('Simpan'),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Kode wajib diisi' : null,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Nama',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white38, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white, width: 1.2),
+                        ),
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    TextFormField(
+                      controller: amountCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Nilai Target (angka)',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white38, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white, width: 1.2),
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Nilai target wajib diisi' : null,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: descCtrl.text,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'core',
+                            child:
+                                Text('Core', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(
+                            value: 'secondary',
+                            child:
+                                Text('Secondary', style: TextStyle(color: Colors.white))),
+                      ],
+                      onChanged: (v) => descCtrl.text = v ?? 'core',
+                      decoration: InputDecoration(
+                        labelText: 'Jenis',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white38, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.white, width: 1.2),
+                        ),
+                      ),
+                      dropdownColor: Colors.black,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      height: 46,
+                      width: 180,
+                      child: isSaving
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.18)),
+                                ),
+                                alignment: Alignment.center,
+                                child: const LinearProgressIndicator(
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                  backgroundColor: Colors.white24,
+                                ),
+                              ),
+                            )
+                          : FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor:
+                                    Colors.white.withOpacity(0.14),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              onPressed: () async {
+                                final valid =
+                                    formKey.currentState?.validate() ?? false;
+                                if (!valid) return;
+                                modalSetState(() => isSaving = true);
+                                try {
+                                  await _service.upsertCriteria(
+                                    Criteria(
+                                      id: idCtrl.text.trim(),
+                                      name: nameCtrl.text.trim(),
+                                      amount: int.parse(amountCtrl.text),
+                                      desc: descCtrl.text,
+                                    ),
+                                  );
+                                  if (context.mounted) Navigator.pop(context, true);
+                                } finally {
+                                  if (mounted) {
+                                    modalSetState(() => isSaving = false);
+                                  }
+                                }
+                              },
+                              child: const Text('Simpan'),
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          }),
         );
       },
     );

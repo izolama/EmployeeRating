@@ -35,6 +35,7 @@ class RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -42,11 +43,13 @@ class RatingScreenState extends State<RatingScreen> {
     try {
       final criteria = await _criteriaService.fetchCriteria();
       final ratings = await _ratingService.fetchRatingsWithStudents();
+      if (!mounted) return;
       setState(() {
         _criteria = criteria;
         _ratings = ratings;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -61,87 +64,134 @@ class RatingScreenState extends State<RatingScreen> {
       final value = _valueByIndex(rating.value, i);
       controllers[i] = TextEditingController(text: value.toString());
     }
+    bool isSaving = false;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.black,
+      barrierColor: Colors.black54,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nilai - ${rating.student.name}',
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-              const SizedBox(height: 12),
-              ...List.generate(_criteria.length, (index) {
-                final c = _criteria[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: TextField(
-                    controller: controllers[index],
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: '${c.id} - ${c.name}',
-                      helperText: 'Target ${c.amount} (${c.desc})',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      helperStyle: const TextStyle(color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: Colors.white38, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: Colors.white, width: 1.2),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.14),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: StatefulBuilder(
+            builder: (context, modalSetState) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  top: 16,
                 ),
-                onPressed: () async {
-                  final newValue = RatingValue(
-                    k1: int.tryParse(controllers[0]?.text ?? '') ?? 0,
-                    k2: int.tryParse(controllers[1]?.text ?? '') ?? 0,
-                    k3: int.tryParse(controllers[2]?.text ?? '') ?? 0,
-                    k4: int.tryParse(controllers[3]?.text ?? '') ?? 0,
-                    k5: int.tryParse(controllers[4]?.text ?? '') ?? 0,
-                  );
-                  await _ratingService.upsertRating(
-                    ratingId: rating.ratingId,
-                    studentId: rating.student.id,
-                    value: newValue,
-                  );
-                  if (context.mounted) Navigator.pop(context, true);
-                },
-                child: const Text('Simpan'),
-              ),
-            ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nilai - ${rating.student.name}',
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    ...List.generate(_criteria.length, (index) {
+                      final c = _criteria[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: TextField(
+                          controller: controllers[index],
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: '${c.id} - ${c.name}',
+                            helperText: 'Target ${c.amount} (${c.desc})',
+                            labelStyle: const TextStyle(color: Colors.white70),
+                            helperStyle: const TextStyle(color: Colors.white54),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: Colors.white38, width: 1),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: Colors.white, width: 1.2),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 46,
+                      width: 200,
+                      child: isSaving
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.18)),
+                                ),
+                                alignment: Alignment.center,
+                                child: const LinearProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                  backgroundColor: Colors.white24,
+                                ),
+                              ),
+                            )
+                          : FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor:
+                                    Colors.white.withOpacity(0.14),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              onPressed: () async {
+                                modalSetState(() => isSaving = true);
+                                try {
+                                  final newValue = RatingValue(
+                                    k1: int.tryParse(controllers[0]?.text ?? '') ??
+                                        0,
+                                    k2: int.tryParse(controllers[1]?.text ?? '') ??
+                                        0,
+                                    k3: int.tryParse(controllers[2]?.text ?? '') ??
+                                        0,
+                                    k4: int.tryParse(controllers[3]?.text ?? '') ??
+                                        0,
+                                    k5: int.tryParse(controllers[4]?.text ?? '') ??
+                                        0,
+                                  );
+                                  await _ratingService.upsertRating(
+                                    ratingId: rating.ratingId,
+                                    studentId: rating.student.id,
+                                    value: newValue,
+                                  );
+                                  if (context.mounted) {
+                                    Navigator.pop(context, true);
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    modalSetState(() => isSaving = false);
+                                  }
+                                }
+                              },
+                              child: const Text('Simpan'),
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },

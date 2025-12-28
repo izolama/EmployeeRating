@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,6 +7,7 @@ import '../../data/models/student.dart';
 import '../../data/services/student_service.dart';
 import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
+import 'student_detail_screen.dart';
 import 'students_discover_screen.dart';
 
 const _primaryDark = Color(0xFF0A0A0A);
@@ -53,6 +56,13 @@ class StudentsScreenState extends State<StudentsScreen> {
   }
 
   Future<void> reload() => _loadStudents();
+  Future<void> refreshIfEmpty() async {
+    if (_isLoading) return;
+    final data = await _future;
+    if (data.isEmpty) {
+      await _loadStudents();
+    }
+  }
 
   Future<void> _loadStudents() async {
     setState(() {
@@ -81,60 +91,131 @@ class StudentsScreenState extends State<StudentsScreen> {
     final phoneCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
+    bool isSaving = false;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.black,
+      barrierColor: Colors.black54,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            top: 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Tambah Siswa',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Nama'),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+        return ScrollConfiguration(
+          behavior: _NoScrollbarBehavior(),
+          child: StatefulBuilder(
+            builder: (context, modalSetState) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  top: 18,
                 ),
-                TextFormField(
-                  controller: classCtrl,
-                  decoration: const InputDecoration(labelText: 'Kelas'),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Center(
+                        child: Text('Tambah Siswa',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ),
+                      const SizedBox(height: 16),
+                      _GlassField(
+                        controller: nameCtrl,
+                        label: 'Nama',
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassField(
+                        controller: classCtrl,
+                        label: 'Kelas',
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassField(
+                        controller: addressCtrl,
+                        label: 'Alamat',
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassField(
+                        controller: phoneCtrl,
+                        label: 'Telepon',
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 18),
+                      Center(
+                        child: SizedBox(
+                          height: 46,
+                          width: 200,
+                          child: isSaving
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color:
+                                              Colors.white.withOpacity(0.18)),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const LinearProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                      backgroundColor: Colors.white24,
+                                    ),
+                                  ),
+                                )
+                              : FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor:
+                                        Colors.white.withOpacity(0.14),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                  ),
+                                  onPressed: () async {
+                                    final valid =
+                                        formKey.currentState?.validate() ??
+                                            false;
+                                    if (!valid) {
+                                      return;
+                                    }
+                                    modalSetState(() => isSaving = true);
+                                    try {
+                                      await _service.createStudent(
+                                        name: nameCtrl.text.trim(),
+                                        className: classCtrl.text.trim(),
+                                        address: addressCtrl.text.trim(),
+                                        phone: phoneCtrl.text.trim(),
+                                      );
+                                      if (context.mounted) {
+                                        Navigator.pop(context, true);
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        modalSetState(() => isSaving = false);
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Simpan'),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                TextFormField(
-                  controller: addressCtrl,
-                  decoration: const InputDecoration(labelText: 'Alamat'),
-                ),
-                TextFormField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Telepon'),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    await _service.createStudent(
-                      name: nameCtrl.text.trim(),
-                      className: classCtrl.text.trim(),
-                      address: addressCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                    );
-                    if (context.mounted) Navigator.pop(context, true);
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
@@ -168,26 +249,25 @@ class StudentsScreenState extends State<StudentsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 25, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
                   child: _GreetingHero(
                     name: _displayName,
                     greeting: _greetingText(),
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: _HeaderSection(
-                      totalStudents: students.length, onAdd: showAddDialog),
-                ),
-              ),
+              // SliverToBoxAdapter(
+              //   child: Padding(
+              //     padding:
+              //         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              //     child: _HeaderSection(
+              //         totalStudents: students.length, onAdd: showAddDialog),
+              //   ),
+              // ),
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _FeatureCard(onAdd: showAddDialog),
                 ),
               ),
@@ -224,6 +304,68 @@ class StudentsScreenState extends State<StudentsScreen> {
   }
 }
 
+class _NoScrollbarBehavior extends ScrollBehavior {
+  @override
+  Widget buildScrollbar(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
+
+class _GlassField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? Function(String?)? validator;
+  final TextInputType? keyboardType;
+  final bool light;
+
+  const _GlassField({
+    required this.controller,
+    required this.label,
+    this.validator,
+    this.keyboardType,
+    this.light = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: keyboardType,
+      style: TextStyle(
+          color: light ? Colors.black87 : Colors.white, fontSize: 15.5),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: light ? Colors.black54 : Colors.white70),
+        filled: true,
+        fillColor:
+            light ? const Color(0xFFF7F7F8) : Colors.white.withOpacity(0.05),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+              color: light ? Colors.black12 : Colors.white24, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+              color: light ? Colors.black : Colors.white, width: 1.2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+        ),
+      ),
+    );
+  }
+}
+
 class _GreetingHero extends StatelessWidget {
   final String name;
   final String greeting;
@@ -250,12 +392,12 @@ class _GreetingHero extends StatelessWidget {
             Row(
               children: [
                 const Icon(Icons.wb_sunny_outlined,
-                    color: Color(0xFFF7C8D5), size: 18),
+                    color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   greeting,
                   style: const TextStyle(
-                    color: Color(0xFFF7C8D5),
+                    color: Colors.white70,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
                     fontSize: 11.5,
@@ -299,12 +441,19 @@ class _HeaderSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_secondaryDark, _primaryDark],
+          colors: [Color(0xFFF7F7F8), Color(0xFFEAEAEE)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Stack(
         children: [
@@ -325,7 +474,7 @@ class _HeaderSection extends StatelessWidget {
                         Text(
                           'Selamat datang',
                           style: theme.textTheme.labelLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.black54,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -333,7 +482,7 @@ class _HeaderSection extends StatelessWidget {
                         Text(
                           'Student Rating',
                           style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
+                            color: Colors.black,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -341,9 +490,9 @@ class _HeaderSection extends StatelessWidget {
                     ),
                   ),
                   CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.white.withOpacity(0.16),
-                    child: const Icon(Icons.school, color: Colors.white),
+                    radius: 22,
+                    backgroundColor: Colors.black.withOpacity(0.08),
+                    child: const Icon(Icons.school, color: Colors.black87),
                   ),
                 ],
               ),
@@ -382,14 +531,14 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.black.withOpacity(0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 18),
+          Icon(icon, color: Colors.black87, size: 18),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,13 +546,13 @@ class _StatPill extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.black54,
                     ),
               ),
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -456,13 +605,13 @@ class _HighlightCard extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 6),
-                Text(
-                  student.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              Text(
+                student.name,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
-                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 student.className ?? '-',
@@ -554,11 +703,11 @@ class _FeatureCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         child: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF1A1A1F), Color(0xFF0E0E14)],
+              colors: [Color(0xFFF7F7F8), Color(0xFFEAEAF0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -567,7 +716,7 @@ class _FeatureCard extends StatelessWidget {
             painter: _FeatureCirclePainter(),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withOpacity(0.6),
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -580,17 +729,17 @@ class _FeatureCard extends StatelessWidget {
                           visible: false,
                           child: CircleAvatar(
                             radius: 22,
-                            backgroundColor: Colors.white.withOpacity(0.18),
+                            backgroundColor: Colors.black.withOpacity(0.08),
                             child:
-                                const Icon(Icons.person, color: Colors.white),
+                                const Icon(Icons.person, color: Colors.black87),
                           ),
                         ),
                         const Spacer(),
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: Colors.white.withOpacity(0.16),
+                          backgroundColor: Colors.black.withOpacity(0.08),
                           child: const Icon(Icons.person_add,
-                              color: Colors.white),
+                              color: Colors.black87),
                         ),
                       ],
                     ),
@@ -598,7 +747,7 @@ class _FeatureCard extends StatelessWidget {
                     Text(
                       'FEATURED',
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.92),
+                        color: Colors.black54,
                         letterSpacing: 1.4,
                         fontWeight: FontWeight.w700,
                       ),
@@ -607,7 +756,7 @@ class _FeatureCard extends StatelessWidget {
                     Text(
                       'Tambah siswa dan lakukan penilaian untuk melihat ranking terbaik.',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontSize: 18,
                         height: 1.35,
                         fontWeight: FontWeight.w800,
@@ -616,8 +765,8 @@ class _FeatureCard extends StatelessWidget {
                     const SizedBox(height: 18),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.9),
-                        foregroundColor: _primaryDark,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
                         padding: const EdgeInsets.symmetric(
@@ -681,11 +830,11 @@ class _LiveStudentsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(34, 20, 24, 10),
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 6),
             child: Row(
               children: [
                 Text(
-                  'Live Siswa',
+                  'Daftar Siswa',
                   style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800, color: Colors.black87),
                 ),
@@ -702,6 +851,10 @@ class _LiveStudentsSection extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(30, 8, 30, 8),
+            child: _TotalStudentsBadge(total: students.length),
           ),
           ...take.map((s) => Padding(
                 padding: const EdgeInsets.fromLTRB(30, 8, 30, 8),
@@ -721,67 +874,63 @@ class _LiveStudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withOpacity(0.04), width: 1.4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 8),
-          )
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF5F5F7), Color(0xFFE8E8ED)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => StudentDetailScreen(student: student),
             ),
-            child: Center(
-              child: Text(
-                student.name.isNotEmpty ? student.name[0] : '?',
-                style: const TextStyle(
-                  color: _primaryDark,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-            ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDFDFE),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE9EAF1), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 8),
+              )
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  student.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16.5,
-                    color: _primaryDark,
-                  ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              _StudentAvatarIcon(name: student.name),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      student.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _subtitle(student),
+                      style: const TextStyle(
+                        color: Color(0xFF777A83),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _subtitle(student),
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF444444)),
+            ],
           ),
-          Icon(Icons.chevron_right, color: Colors.grey.shade500),
-        ],
+        ),
       ),
     );
   }
@@ -790,6 +939,131 @@ class _LiveStudentCard extends StatelessWidget {
     final kelas = s.className?.isNotEmpty == true ? s.className! : 'Kelas -';
     final phone = s.phone.isNotEmpty ? s.phone : 'No phone';
     return '$kelas • $phone';
+  }
+}
+
+class _TotalStudentsBadge extends StatelessWidget {
+  final int total;
+  const _TotalStudentsBadge({required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.people, color: Colors.black87),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Siswa',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(color: Colors.black87),
+                  ),
+                  Text(
+                    '$total siswa',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.black54),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Icon(Icons.chevron_right, color: Colors.black54),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudentAvatarIcon extends StatelessWidget {
+  final String name;
+
+  const _StudentAvatarIcon({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0] : '?';
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF2F2F5), Color(0xFFE4E6EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              initial,
+              style: const TextStyle(
+                color: Color(0xFF1B1530),
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                _Bar(height: 10),
+                SizedBox(width: 5),
+                _Bar(height: 14),
+                SizedBox(width: 5),
+                _Bar(height: 12),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Bar extends StatelessWidget {
+  final double height;
+  const _Bar({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 5,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A4A4A),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
   }
 }
 
@@ -1017,11 +1291,11 @@ class _FeatureCirclePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = Paint()
-      ..color = Colors.white.withOpacity(0.24)
+      ..color = Colors.black.withValues(alpha: 0.24)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     final subtleStroke = Paint()
-      ..color = Colors.white.withOpacity(0.16)
+      ..color = Colors.black.withValues(alpha: 0.16)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
 
@@ -1042,29 +1316,29 @@ class _FeatureCirclePainter extends CustomPainter {
 class _WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint1 = Paint()
-      ..color = Colors.white.withOpacity(0.32)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4;
+    // final paint1 = Paint()
+    //   ..color = Colors.grey.withValues(alpha: 0.25)
+    //   ..style = PaintingStyle.stroke
+    //   ..strokeWidth = 2.2;
 
-    final path1 = Path()
-      ..moveTo(-20, size.height * 0.65)
-      ..quadraticBezierTo(
-        size.width * 0.2,
-        size.height * 0.45,
-        size.width * 0.5,
-        size.height * 0.7,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.8,
-        size.height * 0.9,
-        size.width + 20,
-        size.height * 0.65,
-      );
-    canvas.drawPath(path1, paint1);
+    // final path1 = Path()
+    //   ..moveTo(-20, size.height * 0.65)
+    //   ..quadraticBezierTo(
+    //     size.width * 0.2,
+    //     size.height * 0.45,
+    //     size.width * 0.5,
+    //     size.height * 0.7,
+    //   )
+    //   ..quadraticBezierTo(
+    //     size.width * 0.8,
+    //     size.height * 0.9,
+    //     size.width + 20,
+    //     size.height * 0.65,
+    //   );
+    // canvas.drawPath(path1, paint1);
 
     final paint2 = Paint()
-      ..color = Colors.white.withOpacity(0.24)
+      ..color = Colors.black.withOpacity(0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 

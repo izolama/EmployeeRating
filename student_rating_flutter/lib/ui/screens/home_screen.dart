@@ -191,10 +191,10 @@ class _HomeScreenState extends State<HomeScreen>
     }
     switch (value) {
       case 0:
-        _studentsKey.currentState?.reload();
+        _studentsKey.currentState?.refreshIfEmpty();
         break;
       case 1:
-        _criteriaKey.currentState?.reload();
+        _criteriaKey.currentState?.refreshIfEmpty();
         break;
       case 2:
         _ratingKey.currentState?.reload();

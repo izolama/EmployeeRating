@@ -43,6 +43,7 @@ class StudentService {
       id: id,
       name: name,
       className: className,
+      classId: className,
       address: address,
       phone: phone,
     );

@@ -376,7 +376,7 @@ class StudentsScreenState extends State<StudentsScreen> {
                   child: _FeatureCard(onAdd: showAddDialog),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              const SliverToBoxAdapter(child: SizedBox(height: 22)),
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _LiveStudentsSection(
@@ -832,50 +832,29 @@ class _FeatureCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.6),
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Visibility(
-                          visible: false,
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: Colors.black.withOpacity(0.08),
-                            child:
-                                const Icon(Icons.person, color: Colors.black87),
-                          ),
-                        ),
-                        const Spacer(),
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.black.withOpacity(0.08),
-                          child: const Icon(Icons.person_add,
-                              color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
                     Text(
                       'Fitur Unggulan',
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: Colors.black54,
-                        letterSpacing: 1.4,
+                        letterSpacing: 1.1,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       'Tambah siswa dan lakukan penilaian untuk melihat ranking terbaik.',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.black,
-                        fontSize: 18,
+                        fontSize: 17,
                         height: 1.35,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.black,
@@ -925,7 +904,7 @@ class _LiveStudentsSection extends StatelessWidget {
       padding: EdgeInsets.zero,
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.94),
+        color: Colors.white.withOpacity(0.9),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(34),
           topRight: Radius.circular(34),
@@ -952,13 +931,26 @@ class _LiveStudentsSection extends StatelessWidget {
                       fontWeight: FontWeight.w800, color: Colors.black87),
                 ),
                 const Spacer(),
-                GestureDetector(
+                InkWell(
                   onTap: onSeeAll,
-                  child: Text(
-                    'Lihat semua',
-                    style: TextStyle(
-                      color: _primaryDark,
-                      fontWeight: FontWeight.w700,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      children: const [
+                        Text(
+                          'Lihat semua',
+                          style: TextStyle(
+                            color: _primaryDark,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.chevron_right,
+                            color: _primaryDark, size: 18),
+                      ],
                     ),
                   ),
                 ),

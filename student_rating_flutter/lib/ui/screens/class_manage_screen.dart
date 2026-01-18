@@ -1,0 +1,420 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/models/class_info.dart';
+import '../../data/models/user_option.dart';
+import '../../data/services/class_service.dart';
+import '../widgets/app_surface.dart';
+
+class ClassManageScreen extends StatefulWidget {
+  const ClassManageScreen({super.key});
+
+  @override
+  State<ClassManageScreen> createState() => ClassManageScreenState();
+}
+
+class ClassManageScreenState extends State<ClassManageScreen> {
+  late final ClassService _service;
+  bool _loading = true;
+  String? _error;
+  List<ClassInfo> _classes = [];
+  List<UserOption> _waliOptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _service = ClassService(Supabase.instance.client);
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final classes = await _service.fetchClasses();
+      if (!mounted) return;
+      setState(() => _classes = classes);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> refreshIfEmpty() async {
+    if (_loading) return;
+    if (_classes.isEmpty) await _load();
+  }
+
+  Future<void> _loadWaliOptions() async {
+    if (_waliOptions.isNotEmpty) return;
+    final data = await _service.fetchWaliOptions();
+    if (!mounted) return;
+    setState(() => _waliOptions = data);
+  }
+
+  Future<void> _openEditor({ClassInfo? existing}) async {
+    await _loadWaliOptions();
+    final classIdCtrl = TextEditingController(text: existing?.id ?? '');
+    final classNameCtrl = TextEditingController(text: existing?.name ?? '');
+    String? selectedWaliId = existing?.waliUserId;
+    if (selectedWaliId != null &&
+        !_waliOptions.any((wali) => wali.id == selectedWaliId)) {
+      selectedWaliId = null;
+    }
+    bool saving = false;
+    String? error;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      existing == null ? 'Tambah Kelas' : 'Edit Kelas',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: classIdCtrl,
+                      enabled: existing == null,
+                      decoration: const InputDecoration(
+                        labelText: 'Class ID (contoh: 10C)',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: classNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Nama kelas (opsional)',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String?>(
+                      value: selectedWaliId,
+                      decoration: const InputDecoration(
+                        labelText: 'Wali kelas',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('-'),
+                        ),
+                        ..._waliOptions.map(
+                          (wali) => DropdownMenuItem(
+                            value: wali.id,
+                            child: Text(wali.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setModalState(() => selectedWaliId = value),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final classId = classIdCtrl.text.trim();
+                                if (classId.isEmpty) {
+                                  setModalState(
+                                    () => error = 'Class ID wajib diisi.',
+                                  );
+                                  return;
+                                }
+                                setModalState(() {
+                                  saving = true;
+                                  error = null;
+                                });
+                                try {
+                                  await _service.upsertClass(
+                                    classId: classId,
+                                    className: classNameCtrl.text.trim().isEmpty
+                                        ? null
+                                        : classNameCtrl.text.trim(),
+                                    waliUserId: selectedWaliId,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                  await _load();
+                                } catch (e) {
+                                  setModalState(() => error = e.toString());
+                                } finally {
+                                  if (context.mounted) {
+                                    setModalState(() => saving = false);
+                                  }
+                                }
+                              },
+                        child: saving
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Simpan',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDelete(ClassInfo info) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus kelas?'),
+          content: Text('Kelas ${info.id} akan dihapus.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+    await _service.deleteClass(info.id);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBackground(
+      safeTop: true,
+      safeBottom: true,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Kelas',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _openEditor,
+                icon: const Icon(Icons.add, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_error != null)
+            Center(
+              child: Text(
+                'Error: $_error',
+                style: const TextStyle(color: Colors.white),
+              ),
+            )
+          else if (_classes.isEmpty)
+            const _EmptyState()
+          else
+            Expanded(
+              child: ListView.builder(
+                physics: const BouncingScrollPhysics(),
+                itemCount: _classes.length,
+                itemBuilder: (context, index) {
+                  final info = _classes[index];
+                  return _ClassCard(
+                    info: info,
+                    onTap: () => _openEditor(existing: info),
+                    onDelete: () => _confirmDelete(info),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClassCard extends StatelessWidget {
+  final ClassInfo info;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _ClassCard({
+    required this.info,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              info.id,
+              style: const TextStyle(
+                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  info.name?.trim().isNotEmpty == true
+                      ? info.name!.trim()
+                      : 'Kelas ${info.id}',
+                  style: const TextStyle(
+                    color: Color(0xFF1C1C1E),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  info.waliName?.trim().isNotEmpty == true
+                      ? 'Wali: ${info.waliName!.trim()}'
+                      : 'Wali: -',
+                  style: const TextStyle(
+                    color: Color(0xFF8E8E93),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_horiz, color: Color(0xFF8E8E93)),
+            onPressed: onTap,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFF8E8E93)),
+            onPressed: onDelete,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F7),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.black.withOpacity(0.06)),
+        ),
+        child: const Text(
+          'Belum ada data kelas.',
+          style: TextStyle(
+            color: Color(0xFF3A3A3C),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}

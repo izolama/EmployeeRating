@@ -6,6 +6,7 @@ import '../../data/services/auth_service.dart';
 import '../widgets/app_surface.dart';
 import '../widgets/register_user_sheet.dart';
 import 'criteria_screen.dart';
+import 'class_manage_screen.dart';
 import 'login_screen.dart';
 import 'ranking_screen.dart';
 import 'rating_screen.dart';
@@ -33,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen>
       GlobalKey<StudentsScreenState>();
   final GlobalKey<CriteriaScreenState> _criteriaKey =
       GlobalKey<CriteriaScreenState>();
+  final GlobalKey<ClassManageScreenState> _classKey =
+      GlobalKey<ClassManageScreenState>();
   final GlobalKey<RatingScreenState> _ratingKey =
       GlobalKey<RatingScreenState>();
   final GlobalKey<RankingScreenState> _rankingKey =
@@ -248,6 +251,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   bool _canRegisterUsers() => _role == 'super_admin' || _role == 'admin';
+  bool _canManageClasses() => _role == 'super_admin' || _role == 'admin';
 
   List<_HomeTab> _tabsForRole() {
     if (_role == 'siswa') {
@@ -271,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ];
     }
-    return [
+    final tabs = <_HomeTab>[
       _HomeTab(
         tab: const Tab(icon: Icon(Icons.home, size: 20)),
         builder: (controller) => StudentsScreen(
@@ -284,6 +288,16 @@ class _HomeScreenState extends State<HomeScreen>
         tab: const Tab(icon: Icon(Icons.list_alt, size: 20)),
         builder: (_) => CriteriaScreen(key: _criteriaKey),
       ),
+    ];
+    if (_canManageClasses()) {
+      tabs.add(
+        _HomeTab(
+          tab: const Tab(icon: Icon(Icons.grid_view_rounded, size: 20)),
+          builder: (_) => ClassManageScreen(key: _classKey),
+        ),
+      );
+    }
+    tabs.add(
       _HomeTab(
         tab: const Tab(icon: Icon(Icons.assignment, size: 20)),
         builder: (_) => RatingScreen(
@@ -291,6 +305,8 @@ class _HomeScreenState extends State<HomeScreen>
           classId: _role == 'wali' ? _classId : null,
         ),
       ),
+    );
+    tabs.add(
       _HomeTab(
         tab: const Tab(icon: Icon(Icons.emoji_events, size: 20)),
         builder: (_) => RankingScreen(
@@ -298,7 +314,8 @@ class _HomeScreenState extends State<HomeScreen>
           classId: _role == 'wali' ? _classId : null,
         ),
       ),
-    ];
+    );
+    return tabs;
   }
 
   String _displayName() {
@@ -323,6 +340,26 @@ class _HomeScreenState extends State<HomeScreen>
     if (_role == 'siswa') {
       if (value == 1) {
         _rankingKey.currentState?.reload();
+      }
+      return;
+    }
+    if (_canManageClasses()) {
+      switch (value) {
+        case 0:
+          _studentsKey.currentState?.refreshIfEmpty();
+          break;
+        case 1:
+          _criteriaKey.currentState?.refreshIfEmpty();
+          break;
+        case 2:
+          _classKey.currentState?.refreshIfEmpty();
+          break;
+        case 3:
+          _ratingKey.currentState?.reload();
+          break;
+        case 4:
+          _rankingKey.currentState?.reload();
+          break;
       }
       return;
     }

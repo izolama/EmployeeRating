@@ -207,9 +207,9 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
               ),
               onChanged: (value) => _loadStudentsForClass(value),
               validator: (v) {
-                if (_role == 'siswa' &&
+                if ((_role == 'siswa' || _role == 'wali') &&
                     (v == null || v.trim().isEmpty)) {
-                  return 'Class ID wajib untuk siswa';
+                  return 'Class ID wajib untuk siswa/wali';
                 }
                 return null;
               },

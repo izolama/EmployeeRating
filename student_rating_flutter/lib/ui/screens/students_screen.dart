@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/student.dart';
+import '../../data/models/class_info.dart';
+import '../../data/services/class_service.dart';
 import '../../data/services/student_service.dart';
 import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
@@ -25,6 +27,7 @@ class StudentsScreen extends StatefulWidget {
 
 class StudentsScreenState extends State<StudentsScreen> {
   late final StudentService _service;
+  late final ClassService _classService;
   late Future<List<Student>> _future;
   bool _isLoading = true;
   late final String _displayName;
@@ -33,6 +36,7 @@ class StudentsScreenState extends State<StudentsScreen> {
   void initState() {
     super.initState();
     _service = StudentService(Supabase.instance.client);
+    _classService = ClassService(Supabase.instance.client);
     _displayName = _resolveName();
     _loadStudents();
   }
@@ -91,6 +95,8 @@ class StudentsScreenState extends State<StudentsScreen> {
     final addressCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    List<ClassInfo> classOptions = [];
+    String? selectedClassId;
 
     bool isSaving = false;
     final saved = await showModalBottomSheet<bool>(
@@ -103,6 +109,13 @@ class StudentsScreenState extends State<StudentsScreen> {
           behavior: _NoScrollbarBehavior(),
           child: StatefulBuilder(
             builder: (context, modalSetState) {
+              Future<void> loadClassOptions() async {
+                if (classOptions.isNotEmpty) return;
+                final data = await _classService.fetchClassOptions();
+                if (!mounted) return;
+                modalSetState(() => classOptions = data);
+              }
+              loadClassOptions();
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
@@ -132,9 +145,33 @@ class StudentsScreenState extends State<StudentsScreen> {
                             v == null || v.isEmpty ? 'Nama wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
-                      _GlassField(
-                        controller: classCtrl,
-                        label: 'Kelas',
+                      DropdownButtonFormField<String>(
+                        value: selectedClassId,
+                        decoration: const InputDecoration(labelText: 'Kelas'),
+                        items: classOptions
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c.id,
+                                child: Text(c.name?.trim().isNotEmpty == true
+                                    ? '${c.name} (${c.id})'
+                                    : c.id),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          modalSetState(() {
+                            selectedClassId = value;
+                            final label = classOptions
+                                .firstWhere(
+                                  (c) => c.id == value,
+                                  orElse: () => ClassInfo(id: value ?? ''),
+                                )
+                                .id;
+                            classCtrl.text = label;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Kelas wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       _GlassField(

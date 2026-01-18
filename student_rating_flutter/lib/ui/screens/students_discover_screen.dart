@@ -29,6 +29,30 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
   bool _hasMore = true;
   int _page = 0;
   static const int _pageSize = 50;
+  String _query = '';
+
+  List<Student> _filterByMode(List<Student> source, String mode) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return source;
+    switch (mode) {
+      case 'class':
+        return source
+            .where((s) => s.className.toLowerCase().contains(query))
+            .toList();
+      case 'contact':
+        return source
+            .where((s) => s.phone.toLowerCase().contains(query))
+            .toList();
+      case 'address':
+        return source
+            .where((s) => s.address.toLowerCase().contains(query))
+            .toList();
+      default:
+        return source
+            .where((s) => s.name.toLowerCase().contains(query))
+            .toList();
+    }
+  }
 
   @override
   void initState() {
@@ -83,6 +107,10 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredTop = _filterByMode(_students, 'top');
+    final filteredClass = _filterByMode(_students, 'class');
+    final filteredContact = _filterByMode(_students, 'contact');
+    final filteredAddress = _filterByMode(_students, 'address');
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppBackground(
@@ -97,30 +125,30 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
-                const Spacer(),
-                Text(
-                  'Daftar Siswa',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      'Daftar Siswa',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
-                const Spacer(),
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.white.withOpacity(0.14),
-                  child: const Icon(Icons.person, color: Colors.white),
-                ),
+                const SizedBox(width: 40),
               ],
             ),
             const SizedBox(height: 16),
-            _SearchBar(),
+            _SearchBar(
+              onChanged: (value) => setState(() => _query = value),
+            ),
             const SizedBox(height: 18),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.94),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(32),
-                    topRight: Radius.circular(32),
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
                   ),
                   border: Border.all(color: Colors.white.withOpacity(0.4)),
                   boxShadow: [
@@ -136,34 +164,35 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 12),
+                      const SizedBox(height: 4),
                       _CapsuleTabBar(),
                       const SizedBox(height: 10),
                       Expanded(
                         child: TabBarView(
                           children: [
                             _StudentsList(
-                              students: _students,
+                              students: filteredTop,
                               loading: _loading,
                               loadingMore: _loadingMore,
                               hasMore: _hasMore,
                               onLoadMore: _loadMore,
                             ),
                             _StudentsList(
-                              students: _students,
+                              students: filteredClass,
                               loading: _loading,
                               loadingMore: _loadingMore,
                               hasMore: _hasMore,
                               onLoadMore: _loadMore,
                             ),
                             _StudentsList(
-                              students: _students,
+                              students: filteredContact,
                               loading: _loading,
                               loadingMore: _loadingMore,
                               hasMore: _hasMore,
                               onLoadMore: _loadMore,
                             ),
                             _StudentsList(
-                              students: _students,
+                              students: filteredAddress,
                               loading: _loading,
                               loadingMore: _loadingMore,
                               hasMore: _hasMore,
@@ -192,6 +221,10 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
 }
 
 class _SearchBar extends StatelessWidget {
+  final ValueChanged<String> onChanged;
+
+  const _SearchBar({required this.onChanged});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -206,19 +239,18 @@ class _SearchBar extends StatelessWidget {
           const Icon(Icons.search, color: Colors.white),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              'Cari siswa...',
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.85), fontSize: 16),
+            child: TextField(
+              onChanged: onChanged,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Cari siswa...',
+                hintStyle: TextStyle(
+                  color: Colors.white.withOpacity(0.85),
+                ),
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.16),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text('Top', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -238,6 +270,9 @@ class _CapsuleTabBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
       ),
       child: TabBar(
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
         labelColor: color,
         unselectedLabelColor: Colors.grey[600],
         indicator: BoxDecoration(
@@ -291,7 +326,7 @@ class _StudentsList extends StatelessWidget {
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 140),
         itemCount: students.length + 1 + (loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == 0) {

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/models/student.dart';
+import '../../data/services/student_service.dart';
+
 class RegisterUserSheet extends StatefulWidget {
   const RegisterUserSheet({super.key});
 
@@ -18,6 +21,9 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
   bool _loading = false;
   String? _error;
   String? _result;
+  bool _loadingStudents = false;
+  List<Student> _students = [];
+  String? _selectedStudentId;
 
   @override
   void dispose() {
@@ -28,6 +34,35 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
     super.dispose();
   }
 
+  Future<void> _loadStudentsForClass(String classId) async {
+    if (_role != 'siswa') return;
+    final trimmed = classId.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _students = [];
+        _selectedStudentId = null;
+      });
+      return;
+    }
+    setState(() {
+      _loadingStudents = true;
+      _students = [];
+      _selectedStudentId = null;
+    });
+    try {
+      final service = StudentService(Supabase.instance.client);
+      final students = await service.fetchStudents(classId: trimmed);
+      if (!mounted) return;
+      setState(() {
+        _students = students;
+        _selectedStudentId =
+            students.length == 1 ? students.first.id : null;
+      });
+    } finally {
+      if (mounted) setState(() => _loadingStudents = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -35,6 +70,13 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
       _error = null;
       _result = null;
     });
+    if (_role == 'siswa' && (_selectedStudentId == null)) {
+      setState(() {
+        _error = 'Pilih siswa dari daftar kelas.';
+        _loading = false;
+      });
+      return;
+    }
     final client = Supabase.instance.client;
     final session = client.auth.currentSession;
     if (session == null) {
@@ -53,6 +95,7 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
       'full_name': _fullNameCtrl.text.trim().isEmpty
           ? _emailCtrl.text.trim()
           : _fullNameCtrl.text.trim(),
+      'student_id': _selectedStudentId,
     };
 
     try {
@@ -144,7 +187,17 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
               items: roles
                   .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                   .toList(),
-              onChanged: (v) => setState(() => _role = v ?? 'siswa'),
+              onChanged: (v) {
+                setState(() {
+                  _role = v ?? 'siswa';
+                  if (_role != 'siswa') {
+                    _students = [];
+                    _selectedStudentId = null;
+                  } else {
+                    _loadStudentsForClass(_classCtrl.text);
+                  }
+                });
+              },
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -152,7 +205,41 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
               decoration: const InputDecoration(
                 labelText: 'Class ID (untuk wali/siswa)',
               ),
+              onChanged: (value) => _loadStudentsForClass(value),
+              validator: (v) {
+                if (_role == 'siswa' &&
+                    (v == null || v.trim().isEmpty)) {
+                  return 'Class ID wajib untuk siswa';
+                }
+                return null;
+              },
             ),
+            if (_role == 'siswa') ...[
+              const SizedBox(height: 10),
+              if (_loadingStudents)
+                const LinearProgressIndicator(minHeight: 2),
+              DropdownButtonFormField<String>(
+                value: _selectedStudentId,
+                decoration: const InputDecoration(labelText: 'Pilih siswa'),
+                items: _students
+                    .map(
+                      (s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Text('${s.name} (${s.className})'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedStudentId = v),
+              ),
+              if (!_loadingStudents && _students.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Tidak ada siswa di kelas ini.',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+            ],
             const SizedBox(height: 12),
             if (_error != null)
               Text(

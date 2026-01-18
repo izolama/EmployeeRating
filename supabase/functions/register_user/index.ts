@@ -42,7 +42,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email, password, role, class_id, full_name } = await req.json();
+    const { email, password, role, class_id, full_name, student_id } = await req.json();
     if (!email || !password || !role) {
       return new Response("Missing fields", { status: 400 });
     }
@@ -57,17 +57,27 @@ serve(async (req) => {
       return new Response("Admin cannot create super_admin", { status: 403 });
     }
 
-    const resolvedFullName = (full_name ?? "").toString().trim() || email.split("@")[0];
+    let resolvedFullName = (full_name ?? "").toString().trim() || email.split("@")[0];
     let studentId: string | null = null;
     if (role === "siswa") {
-      const classId = (class_id ?? "").toString().trim();
+      if (!student_id) {
+        return new Response("Missing student_id", { status: 400 });
+      }
       const { data: studentMatch } = await supabaseAdmin
         .from("student")
-        .select("student_id")
-        .ilike("student_name", resolvedFullName)
-        .eq("student_class", classId)
+        .select("student_id, student_name, student_class")
+        .eq("student_id", student_id)
         .maybeSingle();
-      studentId = studentMatch?.student_id ?? null;
+      if (!studentMatch) {
+        return new Response("Invalid student_id", { status: 400 });
+      }
+      if (class_id && studentMatch.student_class?.toString().trim() !== class_id.toString().trim()) {
+        return new Response("student_id does not match class_id", { status: 400 });
+      }
+      studentId = studentMatch.student_id;
+      if (studentMatch.student_name) {
+        resolvedFullName = studentMatch.student_name;
+      }
     }
 
     const { data: userResp, error: createErr } = await supabaseAdmin.auth.admin.createUser({

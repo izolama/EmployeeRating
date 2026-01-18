@@ -396,8 +396,8 @@ class StudentsScreenState extends State<StudentsScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => StudentsDiscoverScreen(
-          students: students,
           onAdd: showAddDialog,
+          classId: widget.classId,
         ),
       ),
     );

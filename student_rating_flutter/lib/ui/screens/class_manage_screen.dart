@@ -85,6 +85,10 @@ class ClassManageScreenState extends State<ClassManageScreen> {
             ),
             child: StatefulBuilder(
               builder: (context, setModalState) {
+                final waliOptions = _waliOptions.toList();
+                final waliIds = waliOptions.map((w) => w.id).toSet();
+                final resolvedWaliId =
+                    waliIds.contains(selectedWaliId) ? selectedWaliId : null;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,7 +130,7 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
-                      value: selectedWaliId,
+                      value: resolvedWaliId,
                       decoration: const InputDecoration(
                         labelText: 'Wali kelas',
                       ),
@@ -135,7 +139,7 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                           value: null,
                           child: Text('-'),
                         ),
-                        ..._waliOptions.map(
+                        ...waliOptions.map(
                           (wali) => DropdownMenuItem(
                             value: wali.id,
                             child: Text(wali.name),
@@ -178,12 +182,15 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                                   error = null;
                                 });
                                 try {
+                                  final safeWaliId = waliIds.contains(selectedWaliId)
+                                      ? selectedWaliId
+                                      : null;
                                   await _service.upsertClass(
                                     classId: classId,
                                     className: classNameCtrl.text.trim().isEmpty
                                         ? null
                                         : classNameCtrl.text.trim(),
-                                    waliUserId: selectedWaliId,
+                                    waliUserId: safeWaliId,
                                   );
                                   if (context.mounted) Navigator.pop(context);
                                   await _load();
@@ -248,60 +255,62 @@ class ClassManageScreenState extends State<ClassManageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppBackground(
-      safeTop: true,
-      safeBottom: true,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Kelas',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Kelas',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              IconButton(
-                onPressed: _openEditor,
-                icon: const Icon(Icons.add, color: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else if (_error != null)
-            Center(
-              child: Text(
-                'Error: $_error',
-                style: const TextStyle(color: Colors.white),
-              ),
-            )
-          else if (_classes.isEmpty)
-            const _EmptyState()
-          else
-            Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: _classes.length,
-                itemBuilder: (context, index) {
-                  final info = _classes[index];
-                  return _ClassCard(
-                    info: info,
-                    onTap: () => _openEditor(existing: info),
-                    onDelete: () => _confirmDelete(info),
-                  );
-                },
-              ),
             ),
-        ],
-      ),
+            _AddClassButton(onTap: _openEditor),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Kelola kelas dan tetapkan wali kelas untuk proses siswa/wali.',
+          style: TextStyle(
+            color: Color(0xFFB8B8C0),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _InfoBanner(onAdd: _openEditor),
+        const SizedBox(height: 12),
+        if (_loading)
+          const Center(child: CircularProgressIndicator())
+        else if (_error != null)
+          Center(
+            child: Text(
+              'Error: $_error',
+              style: const TextStyle(color: Colors.white),
+            ),
+          )
+        else if (_classes.isEmpty)
+          _EmptyState(onAdd: _openEditor)
+        else
+          Expanded(
+            child: ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              itemCount: _classes.length,
+              itemBuilder: (context, index) {
+                final info = _classes[index];
+                return _ClassCard(
+                  info: info,
+                  onTap: () => _openEditor(existing: info),
+                  onDelete: () => _confirmDelete(info),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -321,10 +330,10 @@ class _ClassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F7),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
@@ -337,11 +346,11 @@ class _ClassCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: const Color(0xFFE5E5EA),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -349,7 +358,7 @@ class _ClassCard extends StatelessWidget {
               style: const TextStyle(
                 color: Color(0xFF1C1C1E),
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
           ),
@@ -370,8 +379,8 @@ class _ClassCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   info.waliName?.trim().isNotEmpty == true
-                      ? 'Wali: ${info.waliName!.trim()}'
-                      : 'Wali: -',
+                      ? 'Wali kelas • ${info.waliName!.trim()}'
+                      : 'Wali belum ditentukan',
                   style: const TextStyle(
                     color: Color(0xFF8E8E93),
                     fontSize: 12,
@@ -380,13 +389,16 @@ class _ClassCard extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_horiz, color: Color(0xFF8E8E93)),
-            onPressed: onTap,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Color(0xFF8E8E93)),
-            onPressed: onDelete,
+            onSelected: (value) {
+              if (value == 'edit') onTap();
+              if (value == 'delete') onDelete();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'delete', child: Text('Hapus')),
+            ],
           ),
         ],
       ),
@@ -395,7 +407,9 @@ class _ClassCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final VoidCallback onAdd;
+
+  const _EmptyState({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -407,13 +421,92 @@ class _EmptyState extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.black.withOpacity(0.06)),
         ),
-        child: const Text(
-          'Belum ada data kelas.',
-          style: TextStyle(
-            color: Color(0xFF3A3A3C),
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Belum ada data kelas.',
+              style: TextStyle(
+                color: Color(0xFF3A3A3C),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Buat kelas terlebih dahulu lalu pilih wali kelasnya.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF8E8E93),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onAdd,
+              child: const Text('Tambah kelas'),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _AddClassButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AddClassButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+      ),
+      onPressed: onTap,
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text(
+        'Tambah',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final VoidCallback onAdd;
+
+  const _InfoBanner({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.white70, size: 18),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Tambahkan kelas untuk daftar siswa dan penugasan wali.',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+          TextButton(
+            onPressed: onAdd,
+            child: const Text('Tambah'),
+          ),
+        ],
       ),
     );
   }

@@ -7,13 +7,26 @@ class ClassService {
   ClassService(this._client);
 
   final SupabaseClient _client;
+  static const Duration _cacheTtl = Duration(minutes: 5);
+  static List<ClassInfo>? _classesCache;
+  static DateTime? _classesCacheAt;
+  static List<ClassInfo>? _classOptionsCache;
+  static DateTime? _classOptionsCacheAt;
+
+  bool _isCacheValid(DateTime? timestamp) {
+    if (timestamp == null) return false;
+    return DateTime.now().difference(timestamp) <= _cacheTtl;
+  }
 
   Future<List<ClassInfo>> fetchClasses() async {
+    if (_classesCache != null && _isCacheValid(_classesCacheAt)) {
+      return _classesCache!;
+    }
     final response = await _client
         .from('class')
         .select('class_id, class_name, wali_user_id, profiles(full_name)')
         .order('class_id');
-    return (response as List<dynamic>).map((row) {
+    final classes = (response as List<dynamic>).map((row) {
       final map = row as Map<String, dynamic>;
       String? waliName;
       final profiles = map['profiles'];
@@ -32,6 +45,9 @@ class ClassService {
         waliName: waliName,
       );
     }).toList();
+    _classesCache = classes;
+    _classesCacheAt = DateTime.now();
+    return classes;
   }
 
   Future<List<UserOption>> fetchWaliOptions() async {
@@ -40,25 +56,36 @@ class ClassService {
         .select('user_id, full_name')
         .eq('role', 'wali')
         .order('full_name');
-    return (response as List<dynamic>)
+    final options = (response as List<dynamic>)
         .map((row) => UserOption(
               id: row['user_id'] as String,
               name: row['full_name'] as String? ?? '-',
             ))
         .toList();
+    final deduped = <String, UserOption>{};
+    for (final option in options) {
+      deduped[option.id] = option;
+    }
+    return deduped.values.toList();
   }
 
   Future<List<ClassInfo>> fetchClassOptions() async {
+    if (_classOptionsCache != null && _isCacheValid(_classOptionsCacheAt)) {
+      return _classOptionsCache!;
+    }
     final response = await _client
         .from('class')
         .select('class_id, class_name')
         .order('class_id');
-    return (response as List<dynamic>)
+    final options = (response as List<dynamic>)
         .map((row) => ClassInfo(
               id: row['class_id'] as String,
               name: row['class_name'] as String?,
             ))
         .toList();
+    _classOptionsCache = options;
+    _classOptionsCacheAt = DateTime.now();
+    return options;
   }
 
   Future<ClassInfo?> fetchClassInfo(String classId) async {
@@ -98,9 +125,17 @@ class ClassService {
       'class_name': className,
       'wali_user_id': waliUserId,
     });
+    _classesCache = null;
+    _classOptionsCache = null;
+    _classesCacheAt = null;
+    _classOptionsCacheAt = null;
   }
 
   Future<void> deleteClass(String classId) async {
     await _client.from('class').delete().eq('class_id', classId);
+    _classesCache = null;
+    _classOptionsCache = null;
+    _classesCacheAt = null;
+    _classOptionsCacheAt = null;
   }
 }

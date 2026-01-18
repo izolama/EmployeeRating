@@ -23,9 +23,14 @@ class RatingScreenState extends State<RatingScreen> {
   late final CriteriaService _criteriaService;
   late final RatingService _ratingService;
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 40;
   List<Criteria> _criteria = [];
   List<Rating> _ratings = [];
   String? _error;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
@@ -33,6 +38,14 @@ class RatingScreenState extends State<RatingScreen> {
     final client = Supabase.instance.client;
     _criteriaService = CriteriaService(client);
     _ratingService = RatingService(client, StudentService(client));
+    _scrollController = ScrollController()
+      ..addListener(() {
+        if (!_scrollController.hasClients || _loadingMore || !_hasMore) return;
+        final threshold = _scrollController.position.maxScrollExtent - 240;
+        if (_scrollController.position.pixels >= threshold) {
+          _loadMore();
+        }
+      });
     _fetchData();
   }
 
@@ -41,21 +54,22 @@ class RatingScreenState extends State<RatingScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _ratings = [];
+      _page = 0;
+      _hasMore = true;
     });
     try {
       final criteria = await _criteriaService.fetchCriteria();
-      final ratings = await _ratingService.fetchRatingsWithStudents();
+      final ratings = await _ratingService.fetchRatingsWithStudents(
+        classId: widget.classId,
+        limit: _pageSize,
+        offset: 0,
+      );
       if (!mounted) return;
-      var filtered = ratings;
-      if (widget.classId != null && widget.classId!.trim().isNotEmpty) {
-        final classId = widget.classId!.trim().toLowerCase();
-        filtered = ratings
-            .where((r) => r.student.className.trim().toLowerCase() == classId)
-            .toList();
-      }
       setState(() {
         _criteria = criteria;
-        _ratings = filtered;
+        _ratings = ratings;
+        _hasMore = ratings.length == _pageSize;
       });
     } catch (e) {
       if (!mounted) return;
@@ -66,6 +80,30 @@ class RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> reload() => _fetchData();
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final nextPage = _page + 1;
+      final nextRatings = await _ratingService.fetchRatingsWithStudents(
+        classId: widget.classId,
+        limit: _pageSize,
+        offset: nextPage * _pageSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page = nextPage;
+        _ratings.addAll(nextRatings);
+        _hasMore = nextRatings.length == _pageSize;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
 
   Future<void> _openRatingDialog(Rating rating) async {
     final controllers = <int, TextEditingController>{};
@@ -234,9 +272,22 @@ class RatingScreenState extends State<RatingScreen> {
     return RefreshIndicator(
       onRefresh: _fetchData,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
-        itemCount: _ratings.length,
+        itemCount: _ratings.length + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index >= _ratings.length) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
           final rating = _ratings[index];
           return AppCard(
             margin: const EdgeInsets.only(bottom: 14),
@@ -282,6 +333,12 @@ class RatingScreenState extends State<RatingScreen> {
       default:
         return 0;
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 }
 

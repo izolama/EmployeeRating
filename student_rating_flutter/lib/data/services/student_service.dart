@@ -6,13 +6,43 @@ class StudentService {
   StudentService(this._client);
 
   final SupabaseClient _client;
+  static const Duration _cacheTtl = Duration(minutes: 3);
+  static final Map<String, _StudentCacheEntry> _cache = {};
 
-  Future<List<Student>> fetchStudents({String? classId}) async {
+  Future<List<Student>> fetchStudents({
+    String? classId,
+    bool useCache = true,
+  }) async {
+    final key = (classId ?? '_all').trim().toLowerCase();
+    final cached = _cache[key];
+    if (useCache && cached != null && !cached.isExpired) {
+      return cached.students;
+    }
     var query = _client.from('student').select();
     if (classId != null && classId.trim().isNotEmpty) {
-      query = query.eq('student_class', classId.trim());
+      final trimmed = classId.trim();
+      query = query.or('class_id.eq.$trimmed,student_class.eq.$trimmed');
     }
     final response = await query.order('student_id');
+    final students = (response as List<dynamic>)
+        .map((e) => Student.fromMap(e as Map<String, dynamic>))
+        .toList();
+    _cache[key] = _StudentCacheEntry(students);
+    return students;
+  }
+
+  Future<List<Student>> fetchStudentsPage({
+    String? classId,
+    required int limit,
+    required int offset,
+  }) async {
+    var query = _client.from('student').select();
+    if (classId != null && classId.trim().isNotEmpty) {
+      final trimmed = classId.trim();
+      query = query.or('class_id.eq.$trimmed,student_class.eq.$trimmed');
+    }
+    final response =
+        await query.order('student_id').range(offset, offset + limit - 1);
     return (response as List<dynamic>)
         .map((e) => Student.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -30,6 +60,7 @@ class StudentService {
 
   Future<void> upsertStudent(Student student) async {
     await _client.from('student').upsert(student.toMap());
+    _cache.clear();
   }
 
   Future<Student> createStudent({
@@ -48,6 +79,16 @@ class StudentService {
       phone: phone,
     );
     await upsertStudent(student);
+    _cache.clear();
     return student;
   }
+}
+
+class _StudentCacheEntry {
+  _StudentCacheEntry(this.students) : createdAt = DateTime.now();
+
+  final List<Student> students;
+  final DateTime createdAt;
+
+  bool get isExpired => DateTime.now().difference(createdAt) > StudentService._cacheTtl;
 }

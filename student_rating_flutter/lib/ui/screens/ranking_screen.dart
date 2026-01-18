@@ -45,14 +45,9 @@ class RankingScreenState extends State<RankingScreen> {
     });
     try {
       final criteria = await _criteriaService.fetchCriteria();
-      var ratings = await _ratingService.fetchRatingsWithStudents();
-      if (widget.classId != null && widget.classId!.trim().isNotEmpty) {
-        ratings = ratings
-            .where((r) =>
-                r.student.className.trim().toLowerCase() ==
-                widget.classId!.trim().toLowerCase())
-            .toList();
-      }
+      final ratings = await _ratingService.fetchRatingsWithStudents(
+        classId: widget.classId,
+      );
       final calculator = ProfileMatchingCalculator();
       final rankingList = calculator.calculate(
         criteria: criteria,

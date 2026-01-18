@@ -12,9 +12,21 @@ class RatingService {
   final SupabaseClient _client;
   final StudentService _studentService;
 
-  Future<List<Rating>> fetchRatingsWithStudents() async {
-    final students = await _studentService.fetchStudents();
-    final ratingRows = await _client.from('rating').select();
+  Future<List<Rating>> fetchRatingsWithStudents({
+    String? classId,
+    int? limit,
+    int? offset,
+  }) async {
+    final students = limit == null || offset == null
+        ? await _studentService.fetchStudents(classId: classId)
+        : await _studentService.fetchStudentsPage(
+            classId: classId,
+            limit: limit,
+            offset: offset,
+          );
+    if (students.isEmpty) return [];
+    final orFilter = students.map((s) => 'student_id.eq.${s.id}').join(',');
+    final ratingRows = await _client.from('rating').select().or(orFilter);
 
     final ratingByStudentId = {
       for (final row in ratingRows) row['student_id'] as String: row,

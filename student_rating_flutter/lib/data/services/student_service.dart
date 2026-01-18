@@ -8,11 +8,11 @@ class StudentService {
   final SupabaseClient _client;
 
   Future<List<Student>> fetchStudents({String? classId}) async {
-    var query = _client.from('student').select().order('student_id');
+    var query = _client.from('student').select();
     if (classId != null && classId.trim().isNotEmpty) {
-      query = query.ilike('student_class', classId.trim());
+      query = query.eq('student_class', classId.trim());
     }
-    final response = await query;
+    final response = await query.order('student_id');
     return (response as List<dynamic>)
         .map((e) => Student.fromMap(e as Map<String, dynamic>))
         .toList();

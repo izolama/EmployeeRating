@@ -5,6 +5,7 @@ import '../../data/models/criteria.dart';
 import '../../data/models/rating.dart';
 import '../../data/models/rating_value.dart';
 import '../../data/services/criteria_service.dart';
+import '../../data/services/class_service.dart';
 import '../../data/services/student_service.dart';
 import '../../data/services/rating_service.dart';
 import '../widgets/app_shimmer.dart';
@@ -22,6 +23,7 @@ class RatingScreen extends StatefulWidget {
 class RatingScreenState extends State<RatingScreen> {
   late final CriteriaService _criteriaService;
   late final RatingService _ratingService;
+  late final ClassService _classService;
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = true;
@@ -31,6 +33,10 @@ class RatingScreenState extends State<RatingScreen> {
   List<Rating> _ratings = [];
   String? _error;
   late final ScrollController _scrollController;
+  String _searchQuery = '';
+  String? _selectedClassId;
+  String _selectedCriteriaId = 'all';
+  List<String> _classOptions = [];
 
   @override
   void initState() {
@@ -38,6 +44,8 @@ class RatingScreenState extends State<RatingScreen> {
     final client = Supabase.instance.client;
     _criteriaService = CriteriaService(client);
     _ratingService = RatingService(client, StudentService(client));
+    _classService = ClassService(client);
+    _selectedClassId = widget.classId;
     _scrollController = ScrollController()
       ..addListener(() {
         if (!_scrollController.hasClients || _loadingMore || !_hasMore) return;
@@ -46,7 +54,23 @@ class RatingScreenState extends State<RatingScreen> {
           _loadMore();
         }
       });
+    _loadClassOptions();
     _fetchData();
+  }
+
+  Future<void> _loadClassOptions() async {
+    final options = await _classService.fetchClassOptions();
+    if (!mounted) return;
+    setState(() {
+      _classOptions = options.map((c) => c.id).toList();
+    });
+  }
+
+  String? get _effectiveClassId {
+    if (widget.classId != null && widget.classId!.trim().isNotEmpty) {
+      return widget.classId;
+    }
+    return _selectedClassId;
   }
 
   Future<void> _fetchData() async {
@@ -61,7 +85,7 @@ class RatingScreenState extends State<RatingScreen> {
     try {
       final criteria = await _criteriaService.fetchCriteria();
       final ratings = await _ratingService.fetchRatingsWithStudents(
-        classId: widget.classId,
+        classId: _effectiveClassId,
         limit: _pageSize,
         offset: 0,
       );
@@ -87,7 +111,7 @@ class RatingScreenState extends State<RatingScreen> {
     try {
       final nextPage = _page + 1;
       final nextRatings = await _ratingService.fetchRatingsWithStudents(
-        classId: widget.classId,
+        classId: _effectiveClassId,
         limit: _pageSize,
         offset: nextPage * _pageSize,
       );
@@ -269,14 +293,40 @@ class RatingScreenState extends State<RatingScreen> {
         ),
       );
     }
+    final filtered = _searchQuery.trim().isEmpty
+        ? _ratings
+        : _ratings
+            .where((r) => r.student.name
+                .toLowerCase()
+                .contains(_searchQuery.trim().toLowerCase()))
+            .toList();
     return RefreshIndicator(
       onRefresh: _fetchData,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
-        itemCount: _ratings.length + (_loadingMore ? 1 : 0),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
+        itemCount: filtered.length + 1 + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= _ratings.length) {
+          if (index == 0) {
+            return _RatingHeader(
+              classOptions: _classOptions,
+              selectedClassId: _selectedClassId,
+              classLocked:
+                  widget.classId != null && widget.classId!.trim().isNotEmpty,
+              onClassChanged: (value) {
+                setState(() => _selectedClassId = value);
+                _fetchData();
+              },
+              criteria: _criteria,
+              selectedCriteriaId: _selectedCriteriaId,
+              onCriteriaChanged: (value) =>
+                  setState(() => _selectedCriteriaId = value),
+              onSearchChanged: (value) =>
+                  setState(() => _searchQuery = value),
+            );
+          }
+          final itemIndex = index - 1;
+          if (itemIndex >= filtered.length) {
             return const Padding(
               padding: EdgeInsets.only(bottom: 16),
               child: Center(
@@ -288,28 +338,35 @@ class RatingScreenState extends State<RatingScreen> {
               ),
             );
           }
-          final rating = _ratings[index];
-          return AppCard(
-            margin: const EdgeInsets.only(bottom: 14),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              title: Text(
-                rating.student.name,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700),
+          final rating = filtered[itemIndex];
+          return Dismissible(
+            key: ValueKey(rating.student.id),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (_) async {
+              _openRatingDialog(rating);
+              return false;
+            },
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 24),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(20),
               ),
-              subtitle: Text(
-                _criteria.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final c = entry.value;
-                  return '${c.id}: ${_valueByIndex(rating.value, i)}';
-                }).join(' | '),
-                style: const TextStyle(color: Colors.white70),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white70),
-                onPressed: () => _openRatingDialog(rating),
+              child: const Icon(Icons.edit, color: Colors.white70),
+            ),
+            child: AppCard(
+              margin: const EdgeInsets.only(bottom: 14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onLongPress: () => _openRatingDialog(rating),
+                child: _RatingCard(
+                  rating: rating,
+                  criteria: _criteria,
+                  selectedCriteriaId: _selectedCriteriaId,
+                  valueByIndex: _valueByIndex,
+                ),
               ),
             ),
           );
@@ -339,6 +396,303 @@ class RatingScreenState extends State<RatingScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+}
+
+class _RatingHeader extends StatelessWidget {
+  final List<String> classOptions;
+  final String? selectedClassId;
+  final bool classLocked;
+  final ValueChanged<String?> onClassChanged;
+  final List<Criteria> criteria;
+  final String selectedCriteriaId;
+  final ValueChanged<String> onCriteriaChanged;
+  final ValueChanged<String> onSearchChanged;
+
+  const _RatingHeader({
+    required this.classOptions,
+    required this.selectedClassId,
+    required this.classLocked,
+    required this.onClassChanged,
+    required this.criteria,
+    required this.selectedCriteriaId,
+    required this.onCriteriaChanged,
+    required this.onSearchChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Nilai Siswa',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Ringkasan skor per kriteria.',
+            style: TextStyle(color: Color(0xFFB8B8C0), fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          _SearchInput(onChanged: onSearchChanged),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: classLocked ? selectedClassId : selectedClassId,
+                  dropdownColor: const Color(0xFF1A1A22),
+                  decoration: InputDecoration(
+                    labelText: 'Filter kelas',
+                    labelStyle: const TextStyle(color: Color(0xFFB8B8C0)),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.08),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide:
+                          BorderSide(color: Colors.white.withOpacity(0.12)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Colors.white, width: 1.2),
+                    ),
+                  ),
+                  iconEnabledColor: Colors.white70,
+                  items: [
+                    if (!classLocked)
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text(
+                          'Semua kelas',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ...classOptions.map(
+                      (id) => DropdownMenuItem(
+                        value: id,
+                        child: Text(id, style: const TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                  onChanged: classLocked ? null : onClassChanged,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _CriteriaFilterChips(
+            criteria: criteria,
+            selected: selectedCriteriaId,
+            onChanged: onCriteriaChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RatingCard extends StatelessWidget {
+  final Rating rating;
+  final List<Criteria> criteria;
+  final int Function(RatingValue value, int index) valueByIndex;
+  final String selectedCriteriaId;
+
+  const _RatingCard({
+    required this.rating,
+    required this.criteria,
+    required this.valueByIndex,
+    required this.selectedCriteriaId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rating.student.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: criteria
+                      .asMap()
+                      .entries
+                      .where((entry) =>
+                          selectedCriteriaId == 'all' ||
+                          entry.value.id == selectedCriteriaId)
+                      .map((entry) {
+                    final i = entry.key;
+                    final c = entry.value;
+                    return _ScoreChip(
+                      label: c.id,
+                      value: valueByIndex(rating.value, i),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchInput extends StatelessWidget {
+  final ValueChanged<String> onChanged;
+
+  const _SearchInput({required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      onChanged: onChanged,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Cari siswa...',
+        hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+        prefixIcon: const Icon(Icons.search, color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.08),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.white, width: 1.2),
+        ),
+      ),
+    );
+  }
+}
+
+class _CriteriaFilterChips extends StatelessWidget {
+  final List<Criteria> criteria;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _CriteriaFilterChips({
+    required this.criteria,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = criteria.map((c) => c.id).toList();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'Semua',
+            selected: selected == 'all',
+            onTap: () => onChanged('all'),
+          ),
+          ...ids.map(
+            (id) => _FilterChip(
+              label: id,
+              selected: selected == id,
+              onTap: () => onChanged(id),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withOpacity(0.22)
+                : Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? Colors.white.withOpacity(0.4)
+                  : Colors.white.withOpacity(0.12),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreChip extends StatelessWidget {
+  final String label;
+  final int value;
+
+  const _ScoreChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.16)),
+      ),
+      child: Text(
+        '$label $value',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 

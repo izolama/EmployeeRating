@@ -143,8 +143,9 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                         ),
                       ),
                       keyboardType: TextInputType.number,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Nilai target wajib diisi' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Nilai target wajib diisi'
+                          : null,
                       style: const TextStyle(color: Colors.white),
                     ),
                     DropdownButtonFormField<String>(
@@ -152,12 +153,12 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                       items: const [
                         DropdownMenuItem(
                             value: 'core',
-                            child:
-                                Text('Core', style: TextStyle(color: Colors.white))),
+                            child: Text('Core',
+                                style: TextStyle(color: Colors.white))),
                         DropdownMenuItem(
                             value: 'secondary',
-                            child:
-                                Text('Secondary', style: TextStyle(color: Colors.white))),
+                            child: Text('Secondary',
+                                style: TextStyle(color: Colors.white))),
                       ],
                       onChanged: (v) => descCtrl.text = v ?? 'core',
                       decoration: InputDecoration(
@@ -195,16 +196,15 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 child: const LinearProgressIndicator(
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                   backgroundColor: Colors.white24,
                                 ),
                               ),
                             )
                           : FilledButton(
                               style: FilledButton.styleFrom(
-                                backgroundColor:
-                                    Colors.white.withOpacity(0.14),
+                                backgroundColor: Colors.white.withOpacity(0.14),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
@@ -225,7 +225,8 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                                       desc: descCtrl.text,
                                     ),
                                   );
-                                  if (context.mounted) Navigator.pop(context, true);
+                                  if (context.mounted)
+                                    Navigator.pop(context, true);
                                 } finally {
                                   if (mounted) {
                                     modalSetState(() => isSaving = false);
@@ -265,19 +266,32 @@ class CriteriaScreenState extends State<CriteriaScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
             children: [
-              AppCard(
-                margin: const EdgeInsets.only(bottom: 14),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  title: const Text(
-                    'Persyaratan (Core/Secondary)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kriteria',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Core & secondary\nuntuk perhitungan nilai.',
+                          style: TextStyle(
+                            color: Color(0xFFB8B8C0),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  trailing: FilledButton.icon(
+                  FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white.withOpacity(0.12),
                       foregroundColor: Colors.white,
@@ -289,33 +303,135 @@ class CriteriaScreenState extends State<CriteriaScreen> {
                     ),
                     onPressed: _showAddDialog,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Tambah'),
+                    label: const Text('Tambah Kriteria'),
                   ),
-                ),
+                ],
               ),
-              ...criteria.map(
-                (c) => AppCard(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    title: Text(
-                      '${c.id} - ${c.name}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Target: ${c.amount} | ${c.desc}',
-                      style: const TextStyle(color: Colors.white70),
+              const SizedBox(height: 14),
+              if (criteria.isEmpty)
+                AppCard(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Belum ada kriteria.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Tambahkan kriteria untuk mulai penilaian.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _showAddDialog,
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            label: const Text(
+                              'Tambah kriteria',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                )
+              else
+                ...criteria.map(
+                  (c) => _CriteriaCard(criteria: c),
                 ),
-              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _CriteriaCard extends StatelessWidget {
+  final Criteria criteria;
+
+  const _CriteriaCard({required this.criteria});
+
+  String _labelForDesc(String value) {
+    if (value.trim().toLowerCase() == 'secondary') return 'Secondary';
+    return 'Core';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final descLabel = _labelForDesc(criteria.desc);
+    return AppCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                criteria.id,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    criteria.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Target ${criteria.amount}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withOpacity(0.16)),
+              ),
+              child: Text(
+                descLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

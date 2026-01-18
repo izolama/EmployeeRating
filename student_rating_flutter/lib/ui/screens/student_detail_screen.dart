@@ -181,7 +181,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = const Color(0xFFF2F2F7);
+    final bg = Colors.white;
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
@@ -206,39 +206,39 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           )
         ],
       ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.black))
-            : _error != null
-                ? _ErrorState(message: _error!, onRetry: _load)
-                : _current == null
-                    ? _EmptyState(onBack: () => Navigator.pop(context))
-                    : SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _HeroStatsCard(
-                              student: widget.student,
-                              score: _current!.totalScore,
-                              worldRank: _worldRank,
-                              classRank: _classRank,
-                            ),
-                            const SizedBox(height: 16),
-                            _TabsCard(
-                              criteria: _criteria,
-                              normalized: _current!.normalized,
-                              student: widget.student,
-                              badges: _badges,
-                              embed: false,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          : _error != null
+              ? _ErrorState(message: _error!, onRetry: _load)
+              : _current == null
+                  ? _EmptyState(onBack: () => Navigator.pop(context))
+                  : SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _HeroStatsCard(
+                            student: widget.student,
+                            score: _current!.totalScore,
+                            worldRank: _worldRank,
+                            classRank: _classRank,
+                          ),
+                          const SizedBox(height: 16),
+                          _TabsCard(
+                            criteria: _criteria,
+                            normalized: _current!.normalized,
+                            student: widget.student,
+                            badges: _badges,
+                            embed: false,
+                            score: _current!.totalScore,
+                            worldRank: _worldRank,
+                            classRank: _classRank,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
-      ),
+                    ),
     );
   }
 }
@@ -312,6 +312,9 @@ class _TabsCard extends StatelessWidget {
   final Student student;
   final bool embed;
   final List<StudentBadge> badges;
+  final double score;
+  final int? worldRank;
+  final int? classRank;
 
   const _TabsCard({
     required this.criteria,
@@ -319,6 +322,9 @@ class _TabsCard extends StatelessWidget {
     required this.student,
     required this.badges,
     this.embed = false,
+    required this.score,
+    required this.worldRank,
+    required this.classRank,
   });
 
   @override
@@ -326,21 +332,8 @@ class _TabsCard extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: embed
-            ? null
-            : BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.black.withOpacity(0.05)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  )
-                ],
-              ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        decoration: null,
         child: Column(
           children: [
             TabBar(
@@ -364,13 +357,17 @@ class _TabsCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             SizedBox(
-              height: 340,
+              height: 480,
               child: TabBarView(
                 children: [
                   _BadgesGrid(badges: badges),
-                  _StatsChips(
+                  _StatsSection(
                     criteria: criteria,
                     normalized: normalized,
+                    score: score,
+                    worldRank: worldRank,
+                    classRank: classRank,
+                    totalStudents: normalized.isEmpty ? 0 : normalized.length,
                   ),
                   SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -456,9 +453,9 @@ class _HeroStatsCard extends StatelessWidget {
             border: Border.all(color: Colors.black.withOpacity(0.06)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 26,
-                offset: const Offset(0, 14),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               )
             ],
           ),
@@ -622,6 +619,389 @@ class _StatsChips extends StatelessWidget {
   }
 }
 
+class _StatsSection extends StatelessWidget {
+  final List<Criteria> criteria;
+  final List<double> normalized;
+  final double score;
+  final int? worldRank;
+  final int? classRank;
+  final int totalStudents;
+
+  const _StatsSection({
+    required this.criteria,
+    required this.normalized,
+    required this.score,
+    required this.worldRank,
+    required this.classRank,
+    required this.totalStudents,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          _StatsHeroCard(
+            score: score,
+            worldRank: worldRank,
+            classRank: classRank,
+            totalStudents: totalStudents,
+          ),
+          const SizedBox(height: 14),
+          _CriteriaBarCard(
+            criteria: criteria,
+            normalized: normalized,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsHeroCard extends StatelessWidget {
+  final double score;
+  final int? worldRank;
+  final int? classRank;
+  final int totalStudents;
+
+  const _StatsHeroCard({
+    required this.score,
+    required this.worldRank,
+    required this.classRank,
+    required this.totalStudents,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (score.clamp(0, 1) * 100).round();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 21),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          )
+        ],
+        border: Border.all(color: Colors.black.withOpacity(0.04)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Statistik',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Text(
+                  'Semua Waktu',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 128,
+                height: 128,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CircularProgressIndicator(
+                      value: score.clamp(0, 1),
+                      strokeWidth: 11,
+                      backgroundColor: Colors.black.withOpacity(0.12),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.black,
+                      ),
+                    ),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$percent%',
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Skor total',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  children: [
+                    _MiniStatCard(
+                      title: 'Peringkat',
+                      value: worldRank != null ? '#$worldRank' : '-',
+                      subtitle: totalStudents > 0
+                          ? 'dari $totalStudents siswa'
+                          : 'belum ada data',
+                      dark: true,
+                    ),
+                    const SizedBox(height: 10),
+                    _MiniStatCard(
+                      title: 'Peringkat Kelas',
+                      value: classRank != null ? '#$classRank' : '-',
+                      subtitle: 'kelas Anda',
+                      dark: false,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final bool dark;
+
+  const _MiniStatCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.dark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = dark ? const Color(0xFF1D1D21) : Colors.black.withOpacity(0.04);
+    final fg = dark ? Colors.white : Colors.black87;
+    final sub = dark ? Colors.white70 : Colors.black54;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(dark ? 0.05 : 0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: sub,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: sub,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CriteriaBarCard extends StatelessWidget {
+  final List<Criteria> criteria;
+  final List<double> normalized;
+
+  const _CriteriaBarCard({
+    required this.criteria,
+    required this.normalized,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (criteria.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111114),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Text(
+                'Performa per Kriteria',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+              Spacer(),
+              Icon(Icons.bar_chart_rounded, color: Colors.white70),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              for (var i = 0; i < criteria.length; i++)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.7 - (i * 0.1)),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      criteria[i].name,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 230,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: criteria.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 1),
+              itemBuilder: (context, i) {
+                final v = i < normalized.length ? normalized[i] : 0.0;
+                final h = (v.clamp(0.0, 1.0)) * 130 + 24;
+                return SizedBox(
+                  width: 68,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: h,
+                        width: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.white.withOpacity(0.82),
+                              Colors.white.withOpacity(0.55),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(v * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        criteria[i].name,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeroCard extends StatelessWidget {
   final Student student;
 
@@ -641,9 +1021,9 @@ class _HeroCard extends StatelessWidget {
         border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
           )
         ],
       ),

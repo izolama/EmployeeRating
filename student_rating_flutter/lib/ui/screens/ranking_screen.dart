@@ -13,7 +13,9 @@ import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
 
 class RankingScreen extends StatefulWidget {
-  const RankingScreen({super.key});
+  final String? classId;
+
+  const RankingScreen({super.key, this.classId});
 
   @override
   State<RankingScreen> createState() => RankingScreenState();
@@ -43,7 +45,14 @@ class RankingScreenState extends State<RankingScreen> {
     });
     try {
       final criteria = await _criteriaService.fetchCriteria();
-      final ratings = await _ratingService.fetchRatingsWithStudents();
+      var ratings = await _ratingService.fetchRatingsWithStudents();
+      if (widget.classId != null && widget.classId!.trim().isNotEmpty) {
+        ratings = ratings
+            .where((r) =>
+                r.student.className.trim().toLowerCase() ==
+                widget.classId!.trim().toLowerCase())
+            .toList();
+      }
       final calculator = ProfileMatchingCalculator();
       final rankingList = calculator.calculate(
         criteria: criteria,

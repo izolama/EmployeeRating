@@ -7,11 +7,22 @@ class StudentService {
 
   final SupabaseClient _client;
 
-  Future<List<Student>> fetchStudents() async {
-    final response = await _client.from('student').select().order('student_id');
+  Future<List<Student>> fetchStudents({String? classId}) async {
+    var query = _client.from('student').select().order('student_id');
+    if (classId != null && classId.trim().isNotEmpty) {
+      query = query.ilike('student_class', classId.trim());
+    }
+    final response = await query;
     return (response as List<dynamic>)
         .map((e) => Student.fromMap(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<Student?> fetchStudentById(String studentId) async {
+    final response =
+        await _client.from('student').select().eq('student_id', studentId).maybeSingle();
+    if (response == null) return null;
+    return Student.fromMap(response as Map<String, dynamic>);
   }
 
   String _generateId() =>

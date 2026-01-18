@@ -4,10 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/services/auth_service.dart';
 import '../widgets/app_surface.dart';
+import '../widgets/register_user_sheet.dart';
 import 'criteria_screen.dart';
 import 'login_screen.dart';
 import 'ranking_screen.dart';
 import 'rating_screen.dart';
+import 'student_profile_screen.dart';
 import 'students_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,9 +20,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _signingOut = false;
+  bool _roleLoading = true;
+  String? _role;
+  String? _classId;
+  String? _studentId;
+  String? _profileName;
 
   final GlobalKey<StudentsScreenState> _studentsKey =
       GlobalKey<StudentsScreenState>();
@@ -30,22 +37,54 @@ class _HomeScreenState extends State<HomeScreen>
       GlobalKey<RatingScreenState>();
   final GlobalKey<RankingScreenState> _rankingKey =
       GlobalKey<RankingScreenState>();
-  late final TabController _tabController;
+  late TabController _tabController;
 
   AuthService get _auth => AuthService(Supabase.instance.client);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 4,
+    _tabController = _buildTabController(length: 4);
+    _loadRole();
+  }
+
+  TabController _buildTabController({required int length}) {
+    return TabController(
+      length: length,
       vsync: this,
-      initialIndex: _currentIndex,
+      initialIndex: _currentIndex.clamp(0, length - 1),
     )..addListener(() {
         if (!_tabController.indexIsChanging) {
           _onNavTap(_tabController.index);
         }
       });
+  }
+
+  Future<void> _loadRole() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      setState(() => _roleLoading = false);
+      return;
+    }
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('role, class_id, student_id, full_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _role = data?['role'] as String?;
+        _classId = data?['class_id'] as String?;
+        _studentId = data?['student_id'] as String?;
+        _profileName = data?['full_name'] as String?;
+        _roleLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _roleLoading = false);
+    }
   }
 
   Future<void> _signOut() async {
@@ -65,6 +104,26 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_roleLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final tabs = _tabsForRole();
+    if (_tabController.length != tabs.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _tabController.dispose();
+        _tabController = _buildTabController(length: tabs.length);
+        setState(() => _currentIndex = _tabController.index);
+      });
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     const barSurface = Colors.black;
     final iconColor = Colors.white.withOpacity(0.95);
     final unselectedIcon = Colors.white70;
@@ -120,15 +179,9 @@ class _HomeScreenState extends State<HomeScreen>
                       child: TabBarView(
                         controller: _tabController,
                         physics: const BouncingScrollPhysics(),
-                        children: [
-                          StudentsScreen(
-                            key: _studentsKey,
-                            scrollController: controller,
-                          ),
-                          CriteriaScreen(key: _criteriaKey),
-                          RatingScreen(key: _ratingKey),
-                          RankingScreen(key: _rankingKey),
-                        ],
+                        children: tabs
+                            .map((tab) => tab.builder(controller))
+                            .toList(),
                       ),
                     ),
                   ],
@@ -162,12 +215,7 @@ class _HomeScreenState extends State<HomeScreen>
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.w700,
                   ),
-                  tabs: const [
-                    Tab(icon: Icon(Icons.home, size: 20)),
-                    Tab(icon: Icon(Icons.list_alt, size: 20)),
-                    Tab(icon: Icon(Icons.assignment, size: 20)),
-                    Tab(icon: Icon(Icons.emoji_events, size: 20)),
-                  ],
+                  tabs: tabs.map((tab) => tab.tab).toList(),
                 ),
               ),
             ),
@@ -179,15 +227,104 @@ class _HomeScreenState extends State<HomeScreen>
                 child: CircularProgressIndicator(),
               ),
             ),
+          Positioned(
+            right: 16,
+            top: MediaQuery.of(context).padding.top + 12,
+            child: _canRegisterUsers()
+                ? _RegisterFab(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) => const RegisterUserSheet(),
+                      );
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
+  }
+
+  bool _canRegisterUsers() => _role == 'super_admin' || _role == 'admin';
+
+  List<_HomeTab> _tabsForRole() {
+    if (_role == 'siswa') {
+      return [
+        _HomeTab(
+          tab: const Tab(icon: Icon(Icons.person, size: 20)),
+          builder: (_) => StudentProfileScreen(
+            profileName: _profileName?.trim().isNotEmpty == true
+                ? _profileName!.trim()
+                : _displayName(),
+            classId: _classId,
+            studentId: _studentId,
+          ),
+        ),
+        _HomeTab(
+          tab: const Tab(icon: Icon(Icons.emoji_events, size: 20)),
+          builder: (_) => RankingScreen(
+            key: _rankingKey,
+            classId: _classId,
+          ),
+        ),
+      ];
+    }
+    return [
+      _HomeTab(
+        tab: const Tab(icon: Icon(Icons.home, size: 20)),
+        builder: (controller) => StudentsScreen(
+          key: _studentsKey,
+          scrollController: controller,
+          classId: _role == 'wali' ? _classId : null,
+        ),
+      ),
+      _HomeTab(
+        tab: const Tab(icon: Icon(Icons.list_alt, size: 20)),
+        builder: (_) => CriteriaScreen(key: _criteriaKey),
+      ),
+      _HomeTab(
+        tab: const Tab(icon: Icon(Icons.assignment, size: 20)),
+        builder: (_) => RatingScreen(
+          key: _ratingKey,
+          classId: _role == 'wali' ? _classId : null,
+        ),
+      ),
+      _HomeTab(
+        tab: const Tab(icon: Icon(Icons.emoji_events, size: 20)),
+        builder: (_) => RankingScreen(
+          key: _rankingKey,
+          classId: _role == 'wali' ? _classId : null,
+        ),
+      ),
+    ];
+  }
+
+  String _displayName() {
+    if (_profileName != null && _profileName!.trim().isNotEmpty) {
+      return _profileName!.trim();
+    }
+    final user = Supabase.instance.client.auth.currentUser;
+    final metaName = user?.userMetadata?['name'];
+    if (metaName is String && metaName.trim().isNotEmpty) return metaName;
+    final email = user?.email;
+    if (email != null && email.contains('@')) {
+      return email.split('@').first;
+    }
+    return 'Siswa';
   }
 
   void _onNavTap(int value) {
     setState(() => _currentIndex = value);
     if (_tabController.index != value) {
       _tabController.animateTo(value);
+    }
+    if (_role == 'siswa') {
+      if (value == 1) {
+        _rankingKey.currentState?.reload();
+      }
+      return;
     }
     switch (value) {
       case 0:
@@ -210,4 +347,33 @@ class _HomeScreenState extends State<HomeScreen>
     _tabController.dispose();
     super.dispose();
   }
+}
+
+class _RegisterFab extends StatelessWidget {
+  final VoidCallback onTap;
+  const _RegisterFab({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black,
+      shape: const CircleBorder(),
+      elevation: 8,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: Icon(Icons.person_add_alt_1, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTab {
+  final Tab tab;
+  final Widget Function(ScrollController? controller) builder;
+
+  const _HomeTab({required this.tab, required this.builder});
 }

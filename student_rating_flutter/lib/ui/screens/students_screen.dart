@@ -15,8 +15,9 @@ const _secondaryDark = Color(0xFF121218);
 
 class StudentsScreen extends StatefulWidget {
   final ScrollController? scrollController;
+  final String? classId;
 
-  const StudentsScreen({super.key, this.scrollController});
+  const StudentsScreen({super.key, this.scrollController, this.classId});
 
   @override
   State<StudentsScreen> createState() => StudentsScreenState();
@@ -67,7 +68,7 @@ class StudentsScreenState extends State<StudentsScreen> {
   Future<void> _loadStudents() async {
     setState(() {
       _isLoading = true;
-      _future = _service.fetchStudents();
+      _future = _service.fetchStudents(classId: widget.classId);
     });
     try {
       await _future;
@@ -224,6 +225,72 @@ class StudentsScreenState extends State<StudentsScreen> {
     if (saved == true) _refresh();
   }
 
+  void _showProfileActions() {
+    final user = Supabase.instance.client.auth.currentUser;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _displayName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (user?.email != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  user!.email!,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await Supabase.instance.client.auth.signOut();
+                  },
+                  child: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -250,12 +317,13 @@ class StudentsScreenState extends State<StudentsScreen> {
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
-                  child: _GreetingHero(
-                    name: _displayName,
-                    greeting: _greetingText(),
-                  ),
+                child: _GreetingHero(
+                  name: _displayName,
+                  greeting: _greetingText(),
+                  onNameTap: _showProfileActions,
                 ),
               ),
+            ),
               // SliverToBoxAdapter(
               //   child: Padding(
               //     padding:
@@ -369,8 +437,13 @@ class _GlassField extends StatelessWidget {
 class _GreetingHero extends StatelessWidget {
   final String name;
   final String greeting;
+  final VoidCallback? onNameTap;
 
-  const _GreetingHero({required this.name, required this.greeting});
+  const _GreetingHero({
+    required this.name,
+    required this.greeting,
+    this.onNameTap,
+  });
 
   String _avatarForName(String value) {
     final trimmed = value.trim().toLowerCase();
@@ -406,12 +479,15 @@ class _GreetingHero extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
+            GestureDetector(
+              onTap: onNameTap,
+              child: Text(
+                name,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
             ),
           ],
         ),
@@ -927,7 +1003,6 @@ class _LiveStudentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF444444)),
             ],
           ),
         ),
@@ -1079,11 +1154,6 @@ class _StudentsSkeleton extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 25, vertical: 8),
           child: _ShimmerGreeting(),
-        ),
-        const SizedBox(height: 10),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ShimmerBlock(height: 190, radius: 26, margin: EdgeInsets.zero),
         ),
         const SizedBox(height: 14),
         const Padding(

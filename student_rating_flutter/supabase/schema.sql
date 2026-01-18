@@ -44,3 +44,8 @@ do $$ begin
   execute 'create policy "Allow all delete" on public.rating for delete using (auth.role() = ''authenticated'')';
 exception when others then null;
 end $$;
+
+-- Profiles: link optional student_id for direct mapping.
+alter table public.profiles
+  add column if not exists student_id text references public.student(student_id);
+create index if not exists profiles_student_id_idx on public.profiles(student_id);

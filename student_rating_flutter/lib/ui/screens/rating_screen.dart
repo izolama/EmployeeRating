@@ -11,7 +11,9 @@ import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
 
 class RatingScreen extends StatefulWidget {
-  const RatingScreen({super.key});
+  final String? classId;
+
+  const RatingScreen({super.key, this.classId});
 
   @override
   State<RatingScreen> createState() => RatingScreenState();
@@ -44,9 +46,16 @@ class RatingScreenState extends State<RatingScreen> {
       final criteria = await _criteriaService.fetchCriteria();
       final ratings = await _ratingService.fetchRatingsWithStudents();
       if (!mounted) return;
+      var filtered = ratings;
+      if (widget.classId != null && widget.classId!.trim().isNotEmpty) {
+        final classId = widget.classId!.trim().toLowerCase();
+        filtered = ratings
+            .where((r) => r.student.className.trim().toLowerCase() == classId)
+            .toList();
+      }
       setState(() {
         _criteria = criteria;
-        _ratings = ratings;
+        _ratings = filtered;
       });
     } catch (e) {
       if (!mounted) return;

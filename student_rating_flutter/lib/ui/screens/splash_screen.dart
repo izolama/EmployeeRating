@@ -30,12 +30,50 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_ready) return const _SplashView();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 1300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutSine,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+      child: _ready
+          ? _AuthGate(stream: _authStream, key: const ValueKey('auth'))
+          : const _SplashView(key: ValueKey('splash')),
+    );
+  }
+}
 
+class _AuthGate extends StatelessWidget {
+  final Stream<AuthState> stream;
+
+  const _AuthGate({required this.stream, super.key});
+
+  @override
+  Widget build(BuildContext context) {
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) return const HomeScreen();
     return StreamBuilder<AuthState>(
-      stream: _authStream,
+      stream: stream,
       builder: (context, snapshot) {
         final liveSession = snapshot.data?.session;
         if (liveSession == null) {
@@ -48,7 +86,33 @@ class _SplashScreenState extends State<SplashScreen> {
 }
 
 class _SplashView extends StatelessWidget {
-  const _SplashView();
+  const _SplashView({super.key});
+
+  Widget _buildHeroCard(BuildContext context, double t) {
+    final size = 140.0 + (240.0 - 140.0) * t;
+    final radius = 32.0 + (28.0 - 32.0) * t;
+    final padding = 18.0 + (20.0 - 18.0) * t;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25 - (0.1 * t)),
+            blurRadius: 28 + (8 * t),
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(padding),
+      child: Image.asset(
+        'assets/ic_ibg3.png',
+        fit: BoxFit.contain,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,42 +131,34 @@ class _SplashView extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 28,
-                        offset: const Offset(0, 16),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(18),
-                  child: Image.asset(
-                    'assets/ic_ibg3.png',
-                    fit: BoxFit.contain,
+                Hero(
+                  tag: 'brand-card',
+                  flightShuttleBuilder: (flightContext, animation, direction,
+                      fromContext, toContext) {
+                    return AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        final t = Curves.easeInOutSine.transform(animation.value);
+                        return Material(
+                          color: Colors.transparent,
+                          child: _buildHeroCard(context, t),
+                        );
+                      },
+                    );
+                  },
+                  child: Material(
+                    color: Colors.transparent,
+                    child: _buildHeroCard(context, 0),
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'Student Rating',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
                 Text(
-                  'Preparing your workspace...',
+                  'Mohon tunggu sebentar...',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
                     fontSize: 12,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),

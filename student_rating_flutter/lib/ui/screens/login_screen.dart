@@ -73,6 +73,78 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showSignupInfo() {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+          backgroundColor: const Color(0xFFF5F5F7),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E5EA),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.info_outline,
+                          color: Color(0xFF1C1C1E), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Pendaftaran akun',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C1C1E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Pendaftaran akun hanya dapat dilakukan oleh admin atausuper admin. '
+                  'Silakan hubungi admin sekolah untuk mendapatkan akses.',
+                  style: TextStyle(
+                    color: Color(0xFF3A3A3C),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF1C1C1E),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Tutup'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_expandCard) {
@@ -97,8 +169,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 1200),
                     curve: Curves.easeInOutSine,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 26, vertical: 26),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 26, vertical: 26),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.96),
                       borderRadius: BorderRadius.circular(28),
@@ -160,8 +232,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailCtrl,
                             decoration: InputDecoration(
-                              labelText: 'Email',
-                              labelStyle: const TextStyle(color: Colors.black54),
+                              labelText: 'Surat Elektronik',
+                              labelStyle:
+                                  const TextStyle(color: Colors.black54),
                               prefixIcon: const Icon(Icons.email_outlined,
                                   color: Colors.black87),
                               filled: true,
@@ -196,8 +269,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passwordCtrl,
                             decoration: InputDecoration(
-                              labelText: 'Password',
-                              labelStyle: const TextStyle(color: Colors.black54),
+                              labelText: 'Kata Sandi',
+                              labelStyle:
+                                  const TextStyle(color: Colors.black54),
                               prefixIcon: const Icon(Icons.lock_outline,
                                   color: Colors.black87),
                               filled: true,
@@ -270,9 +344,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           TextButton(
-                            onPressed: _loading ? null : _signUp,
+                            onPressed: _loading ? null : _showSignupInfo,
                             child: const Text(
-                              'Daftar akun baru',
+                              'Pendaftaran melalui admin',
                               style: TextStyle(
                                 color: Colors.black87,
                                 fontWeight: FontWeight.w600,

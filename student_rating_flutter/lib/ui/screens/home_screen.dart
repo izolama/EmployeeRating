@@ -20,8 +20,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _signingOut = false;
   bool _roleLoading = true;
@@ -182,9 +181,8 @@ class _HomeScreenState extends State<HomeScreen>
                       child: TabBarView(
                         controller: _tabController,
                         physics: const BouncingScrollPhysics(),
-                        children: tabs
-                            .map((tab) => tab.builder(controller))
-                            .toList(),
+                        children:
+                            tabs.map((tab) => tab.builder(controller)).toList(),
                       ),
                     ),
                   ],
@@ -201,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen>
                   onTap: _onNavTap,
                   isScrollable: true,
                   labelPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                   indicatorPadding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   indicatorColor: indicatorColor,

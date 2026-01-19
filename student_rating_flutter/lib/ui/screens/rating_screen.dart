@@ -147,11 +147,13 @@ class RatingScreenState extends State<RatingScreen> {
           behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
           child: StatefulBuilder(
             builder: (context, modalSetState) {
+              final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+              final safeBottom = MediaQuery.of(context).padding.bottom;
               return Padding(
                 padding: EdgeInsets.only(
                   left: 16,
                   right: 16,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  bottom: bottomInset + safeBottom + 16,
                   top: 16,
                 ),
                 child: Column(

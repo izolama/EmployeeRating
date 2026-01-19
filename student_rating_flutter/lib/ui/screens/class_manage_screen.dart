@@ -73,9 +73,11 @@ class ClassManageScreenState extends State<ClassManageScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+        final safeBottom = MediaQuery.of(context).padding.bottom;
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: bottomInset + safeBottom,
           ),
           child: Container(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
@@ -182,9 +184,10 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                                   error = null;
                                 });
                                 try {
-                                  final safeWaliId = waliIds.contains(selectedWaliId)
-                                      ? selectedWaliId
-                                      : null;
+                                  final safeWaliId =
+                                      waliIds.contains(selectedWaliId)
+                                          ? selectedWaliId
+                                          : null;
                                   await _service.upsertClass(
                                     classId: classId,
                                     className: classNameCtrl.text.trim().isEmpty
@@ -258,9 +261,9 @@ class ClassManageScreenState extends State<ClassManageScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        const Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Kelas',
                 style: TextStyle(
@@ -270,7 +273,7 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                 ),
               ),
             ),
-            _AddClassButton(onTap: _openEditor),
+            // _AddClassButton(onTap: _openEditor),
           ],
         ),
         const SizedBox(height: 8),
@@ -504,7 +507,9 @@ class _InfoBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: onAdd,
-            child: const Text('Tambah'),
+            child: const Text('Tambah',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

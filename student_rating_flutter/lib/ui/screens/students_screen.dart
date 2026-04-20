@@ -18,8 +18,14 @@ const _secondaryDark = Color(0xFF121218);
 class StudentsScreen extends StatefulWidget {
   final ScrollController? scrollController;
   final String? classId;
+  final bool canAddStudent;
 
-  const StudentsScreen({super.key, this.scrollController, this.classId});
+  const StudentsScreen({
+    super.key,
+    this.scrollController,
+    this.classId,
+    this.canAddStudent = true,
+  });
 
   @override
   State<StudentsScreen> createState() => StudentsScreenState();
@@ -373,7 +379,10 @@ class StudentsScreenState extends State<StudentsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _FeatureCard(onAdd: showAddDialog),
+                  child: _FeatureCard(
+                    onAdd: showAddDialog,
+                    canAdd: widget.canAddStudent,
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 22)),
@@ -398,6 +407,7 @@ class StudentsScreenState extends State<StudentsScreen> {
         builder: (_) => StudentsDiscoverScreen(
           onAdd: showAddDialog,
           classId: widget.classId,
+          canAddStudent: widget.canAddStudent,
         ),
       ),
     );
@@ -807,8 +817,9 @@ class _EmptyCard extends StatelessWidget {
 
 class _FeatureCard extends StatelessWidget {
   final VoidCallback onAdd;
+  final bool canAdd;
 
-  const _FeatureCard({required this.onAdd});
+  const _FeatureCard({required this.onAdd, required this.canAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -846,7 +857,9 @@ class _FeatureCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Tambah siswa dan lakukan penilaian untuk melihat ranking terbaik.',
+                      canAdd
+                          ? 'Tambah siswa dan lakukan penilaian untuk melihat ranking terbaik.'
+                          : 'Pantau data siswa kelasmu dan lanjutkan penilaian untuk melihat ranking.',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.black,
                         fontSize: 17,
@@ -855,25 +868,26 @@ class _FeatureCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 12),
+                    if (canAdd)
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                        ),
+                        onPressed: onAdd,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.group_add),
+                            SizedBox(width: 8),
+                            Text('Tambah Siswa'),
+                          ],
+                        ),
                       ),
-                      onPressed: onAdd,
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.group_add),
-                          SizedBox(width: 8),
-                          Text('Tambah Siswa'),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),

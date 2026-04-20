@@ -24,6 +24,13 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
   bool _loadingStudents = false;
   List<Student> _students = [];
   String? _selectedStudentId;
+  List<String> _roles = const ['siswa', 'wali', 'admin'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoleOptions();
+  }
 
   @override
   void dispose() {
@@ -32,6 +39,31 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
     _fullNameCtrl.dispose();
     _classCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRoleOptions() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      final callerRole = (data?['role'] as String?)?.trim().toLowerCase();
+      final roles = callerRole == 'super_admin'
+          ? const ['siswa', 'wali', 'admin', 'super_admin']
+          : const ['siswa', 'wali', 'admin'];
+      if (!mounted) return;
+      setState(() {
+        _roles = roles;
+        if (!_roles.contains(_role)) {
+          _role = 'siswa';
+        }
+      });
+    } catch (_) {
+      // Keep default roles when profile read fails.
+    }
   }
 
   Future<void> _loadStudentsForClass(String classId) async {
@@ -120,7 +152,6 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final roles = const ['siswa', 'wali', 'admin', 'super_admin'];
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -184,7 +215,7 @@ class _RegisterUserSheetState extends State<RegisterUserSheet> {
             DropdownButtonFormField<String>(
               value: _role,
               decoration: const InputDecoration(labelText: 'Role'),
-              items: roles
+              items: _roles
                   .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                   .toList(),
               onChanged: (v) {

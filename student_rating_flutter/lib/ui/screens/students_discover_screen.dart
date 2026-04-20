@@ -10,11 +10,13 @@ import 'student_detail_screen.dart';
 class StudentsDiscoverScreen extends StatefulWidget {
   final VoidCallback onAdd;
   final String? classId;
+  final bool canAddStudent;
 
   const StudentsDiscoverScreen({
     super.key,
     required this.onAdd,
     this.classId,
+    this.canAddStudent = true,
   });
 
   @override
@@ -209,13 +211,17 @@ class _StudentsDiscoverScreenState extends State<StudentsDiscoverScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        onPressed: widget.onAdd,
-        child: const Icon(Icons.add),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: widget.canAddStudent
+          ? FloatingActionButton(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              onPressed: widget.onAdd,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      floatingActionButtonLocation: widget.canAddStudent
+          ? FloatingActionButtonLocation.centerFloat
+          : null,
     );
   }
 }

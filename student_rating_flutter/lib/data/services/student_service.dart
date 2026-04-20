@@ -52,7 +52,7 @@ class StudentService {
     final response =
         await _client.from('student').select().eq('student_id', studentId).maybeSingle();
     if (response == null) return null;
-    return Student.fromMap(response as Map<String, dynamic>);
+    return Student.fromMap(response);
   }
 
   String _generateId() =>
@@ -60,6 +60,13 @@ class StudentService {
 
   Future<void> upsertStudent(Student student) async {
     await _client.from('student').upsert(student.toMap());
+    _cache.clear();
+  }
+
+  Future<void> upsertStudentsBulk(List<Student> students) async {
+    if (students.isEmpty) return;
+    final payload = students.map((s) => s.toMap()).toList();
+    await _client.from('student').upsert(payload);
     _cache.clear();
   }
 

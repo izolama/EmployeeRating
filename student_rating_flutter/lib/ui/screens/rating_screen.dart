@@ -10,6 +10,7 @@ import '../../data/services/student_service.dart';
 import '../../data/services/rating_service.dart';
 import '../widgets/app_shimmer.dart';
 import '../widgets/app_surface.dart';
+import '../widgets/empty_state_card.dart';
 
 class RatingScreen extends StatefulWidget {
   final String? classId;
@@ -221,8 +222,7 @@ class RatingScreenState extends State<RatingScreen> {
                             )
                           : FilledButton(
                               style: FilledButton.styleFrom(
-                                backgroundColor:
-                                    Colors.white.withOpacity(0.14),
+                                backgroundColor: Colors.white.withOpacity(0.14),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
@@ -233,15 +233,20 @@ class RatingScreenState extends State<RatingScreen> {
                                 modalSetState(() => isSaving = true);
                                 try {
                                   final newValue = RatingValue(
-                                    k1: int.tryParse(controllers[0]?.text ?? '') ??
+                                    k1: int.tryParse(
+                                            controllers[0]?.text ?? '') ??
                                         0,
-                                    k2: int.tryParse(controllers[1]?.text ?? '') ??
+                                    k2: int.tryParse(
+                                            controllers[1]?.text ?? '') ??
                                         0,
-                                    k3: int.tryParse(controllers[2]?.text ?? '') ??
+                                    k3: int.tryParse(
+                                            controllers[2]?.text ?? '') ??
                                         0,
-                                    k4: int.tryParse(controllers[3]?.text ?? '') ??
+                                    k4: int.tryParse(
+                                            controllers[3]?.text ?? '') ??
                                         0,
-                                    k5: int.tryParse(controllers[4]?.text ?? '') ??
+                                    k5: int.tryParse(
+                                            controllers[4]?.text ?? '') ??
                                         0,
                                   );
                                   await _ratingService.upsertRating(
@@ -282,17 +287,11 @@ class RatingScreenState extends State<RatingScreen> {
       return Center(child: Text('Error: $_error'));
     }
     if (_ratings.isEmpty) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: AppCard(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            child: const Text(
-              'Belum ada data siswa.',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ),
+      return const EmptyStateCard(
+        icon: Icons.assignment_turned_in_outlined,
+        title: 'Belum ada data siswa.',
+        subtitle:
+            'Tambahkan siswa terlebih dahulu lalu isi nilai per kriteria.',
       );
     }
     final filtered = _searchQuery.trim().isEmpty
@@ -323,8 +322,7 @@ class RatingScreenState extends State<RatingScreen> {
               selectedCriteriaId: _selectedCriteriaId,
               onCriteriaChanged: (value) =>
                   setState(() => _selectedCriteriaId = value),
-              onSearchChanged: (value) =>
-                  setState(() => _searchQuery = value),
+              onSearchChanged: (value) => setState(() => _searchQuery = value),
             );
           }
           final itemIndex = index - 1;
@@ -456,8 +454,8 @@ class _RatingHeader extends StatelessWidget {
                     labelStyle: const TextStyle(color: Color(0xFFB8B8C0)),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.08),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide:
@@ -465,7 +463,8 @@ class _RatingHeader extends StatelessWidget {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.white, width: 1.2),
+                      borderSide:
+                          const BorderSide(color: Colors.white, width: 1.2),
                     ),
                   ),
                   iconEnabledColor: Colors.white70,
@@ -481,7 +480,8 @@ class _RatingHeader extends StatelessWidget {
                     ...classOptions.map(
                       (id) => DropdownMenuItem(
                         value: id,
-                        child: Text(id, style: const TextStyle(color: Colors.white)),
+                        child: Text(id,
+                            style: const TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -577,7 +577,8 @@ class _SearchInput extends StatelessWidget {
         prefixIcon: const Icon(Icons.search, color: Colors.white70),
         filled: true,
         fillColor: Colors.white.withOpacity(0.08),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),

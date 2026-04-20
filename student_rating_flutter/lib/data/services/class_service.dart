@@ -54,7 +54,7 @@ class ClassService {
     final response = await _client
         .from('profiles')
         .select('user_id, full_name')
-        .eq('role', 'wali')
+        .ilike('role', '%wali%')
         .order('full_name');
     final options = (response as List<dynamic>)
         .map((row) => UserOption(
@@ -125,6 +125,21 @@ class ClassService {
       'class_name': className,
       'wali_user_id': waliUserId,
     });
+    _classesCache = null;
+    _classOptionsCache = null;
+    _classesCacheAt = null;
+    _classOptionsCacheAt = null;
+  }
+
+  Future<void> upsertClassesBulk(List<ClassInfo> classes) async {
+    if (classes.isEmpty) return;
+    final payload = classes
+        .map((c) => {
+              'class_id': c.id.trim(),
+              'class_name': c.name?.trim().isNotEmpty == true ? c.name!.trim() : null,
+            })
+        .toList();
+    await _client.from('class').upsert(payload);
     _classesCache = null;
     _classOptionsCache = null;
     _classesCacheAt = null;

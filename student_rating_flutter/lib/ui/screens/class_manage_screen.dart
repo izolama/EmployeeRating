@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/class_info.dart';
 import '../../data/models/user_option.dart';
 import '../../data/services/class_service.dart';
-import '../widgets/app_surface.dart';
+import '../widgets/empty_state_card.dart';
 
 class ClassManageScreen extends StatefulWidget {
   const ClassManageScreen({super.key});
@@ -49,15 +49,15 @@ class ClassManageScreenState extends State<ClassManageScreen> {
     if (_classes.isEmpty) await _load();
   }
 
-  Future<void> _loadWaliOptions() async {
-    if (_waliOptions.isNotEmpty) return;
+  Future<void> _loadWaliOptions({bool forceRefresh = false}) async {
+    if (!forceRefresh && _waliOptions.isNotEmpty) return;
     final data = await _service.fetchWaliOptions();
     if (!mounted) return;
     setState(() => _waliOptions = data);
   }
 
   Future<void> _openEditor({ClassInfo? existing}) async {
-    await _loadWaliOptions();
+    await _loadWaliOptions(forceRefresh: true);
     final classIdCtrl = TextEditingController(text: existing?.id ?? '');
     final classNameCtrl = TextEditingController(text: existing?.name ?? '');
     String? selectedWaliId = existing?.waliUserId;
@@ -66,6 +66,7 @@ class ClassManageScreenState extends State<ClassManageScreen> {
       selectedWaliId = null;
     }
     bool saving = false;
+    bool loadingWali = false;
     String? error;
 
     await showModalBottomSheet<void>(
@@ -91,6 +92,18 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                 final waliIds = waliOptions.map((w) => w.id).toSet();
                 final resolvedWaliId =
                     waliIds.contains(selectedWaliId) ? selectedWaliId : null;
+                Future<void> reloadWaliOptions() async {
+                  if (loadingWali) return;
+                  setModalState(() => loadingWali = true);
+                  try {
+                    await _loadWaliOptions(forceRefresh: true);
+                  } finally {
+                    if (context.mounted) {
+                      setModalState(() => loadingWali = false);
+                    }
+                  }
+                }
+
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,6 +129,32 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Data wali kelas',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3A3A3C),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Refresh wali',
+                          onPressed: loadingWali ? null : reloadWaliOptions,
+                          icon: loadingWali
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh),
+                        ),
+                      ],
+                    ),
                     TextField(
                       controller: classIdCtrl,
                       enabled: existing == null,
@@ -273,7 +312,6 @@ class ClassManageScreenState extends State<ClassManageScreen> {
                 ),
               ),
             ),
-            // _AddClassButton(onTap: _openEditor),
           ],
         ),
         const SizedBox(height: 8),
@@ -288,16 +326,26 @@ class ClassManageScreenState extends State<ClassManageScreen> {
         _InfoBanner(onAdd: _openEditor),
         const SizedBox(height: 12),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          const Expanded(child: Center(child: CircularProgressIndicator()))
         else if (_error != null)
-          Center(
-            child: Text(
-              'Error: $_error',
-              style: const TextStyle(color: Colors.white),
+          Expanded(
+            child: Center(
+              child: Text(
+                'Error: $_error',
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           )
         else if (_classes.isEmpty)
-          _EmptyState(onAdd: _openEditor)
+          Expanded(
+            child: EmptyStateCard(
+              icon: Icons.class_outlined,
+              title: 'Belum ada data kelas.',
+              subtitle: 'Buat kelas terlebih dahulu lalu tetapkan wali kelas.',
+              actionLabel: 'Tambah kelas',
+              onAction: _openEditor,
+            ),
+          )
         else
           Expanded(
             child: ListView.builder(
@@ -404,78 +452,6 @@ class _ClassCard extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-
-  const _EmptyState({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F7),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.black.withOpacity(0.06)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Belum ada data kelas.',
-              style: TextStyle(
-                color: Color(0xFF3A3A3C),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Buat kelas terlebih dahulu lalu pilih wali kelasnya.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF8E8E93),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: onAdd,
-              child: const Text('Tambah kelas'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddClassButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddClassButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.2)),
-        ),
-      ),
-      onPressed: onTap,
-      icon: const Icon(Icons.add, size: 18),
-      label: const Text(
-        'Tambah',
-        style: TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }

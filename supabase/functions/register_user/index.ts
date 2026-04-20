@@ -42,7 +42,19 @@ serve(async (req) => {
   }
 
   try {
-    const { email, password, role, class_id, full_name, student_id } = await req.json();
+    const {
+      email,
+      password,
+      role,
+      class_id,
+      full_name,
+      student_id,
+      phone,
+      address,
+      identity_number,
+      gender,
+      is_active,
+    } = await req.json();
     if (!email || !password || !role) {
       return new Response("Missing fields", { status: 400 });
     }
@@ -58,6 +70,11 @@ serve(async (req) => {
     }
 
     let resolvedFullName = (full_name ?? "").toString().trim() || email.split("@")[0];
+    const resolvedPhone = (phone ?? "").toString().trim() || null;
+    const resolvedAddress = (address ?? "").toString().trim() || null;
+    const resolvedIdentity = (identity_number ?? "").toString().trim() || null;
+    const resolvedGender = (gender ?? "").toString().trim() || null;
+    const resolvedActive = typeof is_active === "boolean" ? is_active : true;
     let studentId: string | null = null;
     if (role === "siswa") {
       if (!student_id) {
@@ -97,6 +114,11 @@ serve(async (req) => {
       class_id: class_id ?? null,
       full_name: resolvedFullName,
       student_id: studentId,
+      phone: resolvedPhone,
+      address: resolvedAddress,
+      identity_number: resolvedIdentity,
+      gender: resolvedGender,
+      is_active: resolvedActive,
     });
     if (profErr) {
       return new Response(`Profiles insert error: ${profErr.message}`, { status: 400 });

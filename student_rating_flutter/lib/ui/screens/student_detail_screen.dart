@@ -1,18 +1,14 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:student_rating_flutter/data/models/ranking.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/criteria.dart';
 import '../../data/models/rating.dart';
 import '../../data/models/student.dart';
-import '../../data/models/badge.dart';
 import '../../data/services/student_service.dart';
-import '../../data/services/badge_service.dart';
 import '../../data/services/criteria_service.dart';
 import '../../data/services/rating_service.dart';
-import '../../logic/badge_generator.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Student student;
@@ -26,16 +22,13 @@ class StudentDetailScreen extends StatefulWidget {
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
   late final CriteriaService _criteriaService;
   late final RatingService _ratingService;
-  late final BadgeService _badgeService;
 
   bool _loading = true;
   String? _error;
   _ScoreEntry? _current;
   int? _worldRank;
   int? _classRank;
-  List<_ScoreEntry> _scores = const [];
   List<Criteria> _criteria = const [];
-  List<StudentBadge> _badges = const [];
 
   @override
   void initState() {
@@ -43,7 +36,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final client = Supabase.instance.client;
     _criteriaService = CriteriaService(client);
     _ratingService = RatingService(client, StudentService(client));
-    _badgeService = BadgeService(client);
     _load();
   }
 
@@ -68,17 +60,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       final classIdx =
           classScores.indexWhere((e) => e.student.id == widget.student.id);
 
-      final badges = _generateBadges(scores, idx);
-      await _badgeService.upsertBadges(widget.student.id, badges);
-
       if (!mounted) return;
       setState(() {
         _criteria = criteria;
-        _scores = scores;
         _current = current;
-        _worldRank = idx == -1 ? null : idx + 1;
-        _classRank = classIdx == -1 ? null : classIdx + 1;
-        _badges = badges;
+        _worldRank = classIdx == -1 ? null : classIdx + 1;
+        _classRank = classScores.length;
       });
     } catch (e) {
       if (!mounted) return;
@@ -139,27 +126,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
     results.sort((a, b) => b.totalScore.compareTo(a.totalScore));
     return results;
-  }
-
-  List<StudentBadge> _generateBadges(List<_ScoreEntry> scores, int currentIdx) {
-    if (currentIdx == -1) return [];
-    final entry = scores[currentIdx];
-    final generator = BadgeGenerator();
-    final rankModel = Ranking(
-      studentName: entry.student.id, // carry id
-      totalScore: entry.totalScore,
-      k1: entry.normalized[0],
-      k2: entry.normalized[1],
-      k3: entry.normalized[2],
-      k4: entry.normalized[3],
-      k5: entry.normalized[4],
-    );
-    return generator.generate(
-      ranking: rankModel,
-      globalRank: currentIdx + 1,
-      totalStudents: scores.length,
-      studentId: entry.student.id,
-    );
   }
 
   int _valueByIndex(Rating rating, int index) {
@@ -229,8 +195,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             criteria: _criteria,
                             normalized: _current!.normalized,
                             student: widget.student,
-                            badges: _badges,
-                            embed: false,
                             score: _current!.totalScore,
                             worldRank: _worldRank,
                             classRank: _classRank,
@@ -243,75 +207,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   }
 }
 
-class _BadgesGrid extends StatelessWidget {
-  const _BadgesGrid({required this.badges});
-
-  final List<StudentBadge> badges;
-
-  @override
-  Widget build(BuildContext context) {
-    if (badges.isEmpty) {
-      return const Center(
-        child: Text(
-          'Belum ada badge',
-          style: TextStyle(color: Colors.black54),
-        ),
-      );
-    }
-    final icons = {
-      'overall': Icons.verified_rounded,
-      'rank': Icons.leaderboard_rounded,
-      'crit_1': Icons.timelapse_rounded,
-      'crit_2': Icons.analytics_rounded,
-      'crit_3': Icons.emoji_emotions_rounded,
-      'crit_4': Icons.star_rate_rounded,
-      'crit_5': Icons.extension_rounded,
-    };
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: badges
-          .map((b) => _BadgeHex(
-                icon: icons[b.code] ?? Icons.shield_rounded,
-                label: _labelFor(b),
-              ))
-          .toList(),
-    );
-  }
-
-  String _labelFor(StudentBadge b) {
-    switch (b.level) {
-      case 'elite':
-        return 'Elite';
-      case 'pro':
-        return 'Pro';
-      case 'rising':
-        return 'Rising';
-      case 'champion':
-        return 'Juara';
-      case 'top3':
-        return 'Top 3';
-      case 'top10pct':
-        return 'Top 10%';
-      case 'gold':
-        return 'Gold';
-      case 'silver':
-        return 'Silver';
-      case 'bronze':
-        return 'Bronze';
-      default:
-        return b.level;
-    }
-  }
-}
-
 class _TabsCard extends StatelessWidget {
   final List<Criteria> criteria;
   final List<double> normalized;
   final Student student;
-  final bool embed;
-  final List<StudentBadge> badges;
   final double score;
   final int? worldRank;
   final int? classRank;
@@ -320,8 +219,6 @@ class _TabsCard extends StatelessWidget {
     required this.criteria,
     required this.normalized,
     required this.student,
-    required this.badges,
-    this.embed = false,
     required this.score,
     required this.worldRank,
     required this.classRank,
@@ -330,7 +227,7 @@ class _TabsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         decoration: null,
@@ -343,14 +240,16 @@ class _TabsCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
               ),
-              indicator: const _DotIndicator(),
+              indicator: const UnderlineTabIndicator(
+                borderSide: BorderSide(color: Colors.black, width: 2.2),
+                insets: EdgeInsets.symmetric(horizontal: 24),
+              ),
               indicatorSize: TabBarIndicatorSize.label,
               overlayColor: WidgetStateProperty.all(
                 Colors.transparent,
               ),
               dividerColor: Colors.transparent,
               tabs: const [
-                Tab(text: 'Lencana'),
                 Tab(text: 'Statistik'),
                 Tab(text: 'Detail'),
               ],
@@ -360,14 +259,13 @@ class _TabsCard extends StatelessWidget {
               height: 480,
               child: TabBarView(
                 children: [
-                  _BadgesGrid(badges: badges),
                   _StatsSection(
                     criteria: criteria,
                     normalized: normalized,
                     score: score,
                     worldRank: worldRank,
                     classRank: classRank,
-                    totalStudents: normalized.isEmpty ? 0 : normalized.length,
+                    totalStudents: classRank ?? 0,
                   ),
                   SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -504,57 +402,20 @@ class _HeroStatsCard extends StatelessWidget {
                     ),
                     const _StatDivider(dark: true),
                     _StatTile(
-                      label: 'Peringkat',
+                      label: 'Peringkat Kelas',
                       value: worldRank != null ? '#$worldRank' : '-',
                       dark: true,
                     ),
                     const _StatDivider(dark: true),
                     _StatTile(
-                      label: 'Peringkat Kelas',
-                      value: classRank != null ? '#$classRank' : '-',
+                      label: 'Jumlah Siswa Kelas',
+                      value: classRank != null ? '$classRank' : '-',
                       dark: true,
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BadgeHex extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _BadgeHex({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 58,
-          height: 58,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
-          ),
-          child: Center(
-            child: Icon(icon, color: Colors.black87, size: 26),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black54,
-            fontWeight: FontWeight.w600,
-            fontSize: 12.5,
           ),
         ),
       ],
@@ -675,6 +536,10 @@ class _StatsHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (score.clamp(0, 1) * 100).round();
+    final rankText = worldRank != null ? '#$worldRank' : '-';
+    final studentsText = totalStudents > 0
+        ? 'dari $totalStudents siswa'
+        : 'belum ada data kelas';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 21),
@@ -706,89 +571,123 @@ class _StatsHeroCard extends StatelessWidget {
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Text(
-                  'Semua Waktu',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: 14,
+                      color: Colors.black54,
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      'Semua Waktu',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 128,
-                height: 128,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CircularProgressIndicator(
-                      value: score.clamp(0, 1),
-                      strokeWidth: 11,
-                      backgroundColor: Colors.black.withOpacity(0.12),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.black,
+          _MiniStatCard(
+            title: 'Peringkat Kelas',
+            value: rankText,
+            subtitle: studentsText,
+            dark: true,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: score.clamp(0, 1),
+                        strokeWidth: 9,
+                        backgroundColor: Colors.black.withOpacity(0.12),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.black,
+                        ),
                       ),
-                    ),
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$percent%',
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black,
-                            ),
+                      Center(
+                        child: Text(
+                          '$percent%',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Skor total',
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  children: [
-                    _MiniStatCard(
-                      title: 'Peringkat',
-                      value: worldRank != null ? '#$worldRank' : '-',
-                      subtitle: totalStudents > 0
-                          ? 'dari $totalStudents siswa'
-                          : 'belum ada data',
-                      dark: true,
-                    ),
-                    const SizedBox(height: 10),
-                    _MiniStatCard(
-                      title: 'Peringkat Kelas',
-                      value: classRank != null ? '#$classRank' : '-',
-                      subtitle: 'kelas Anda',
-                      dark: false,
-                    ),
-                  ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Skor Total',
+                        style: TextStyle(
+                          color: Colors.black87.withOpacity(0.84),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        score.toStringAsFixed(3),
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 28,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Nilai SAW akhir siswa',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        studentsText,
+                        style: const TextStyle(
+                          color: Colors.black45,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -937,8 +836,7 @@ class _CriteriaBarCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
           SizedBox(
             height: 230,
             child: ListView.separated(
@@ -954,6 +852,15 @@ class _CriteriaBarCard extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      Text(
+                        '${(v * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         height: h,
@@ -971,14 +878,6 @@ class _CriteriaBarCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        '${(v * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
                       Text(
                         criteria[i].name,
                         textAlign: TextAlign.center,
@@ -1108,14 +1007,14 @@ class _StatsCard extends StatelessWidget {
           ),
           const _StatDivider(dark: true),
           _StatTile(
-            label: 'Peringkat',
+            label: 'Peringkat Kelas',
             value: worldRank != null ? '#$worldRank' : '-',
             dark: true,
           ),
           const _StatDivider(dark: true),
           _StatTile(
-            label: 'Peringkat Kelas',
-            value: classRank != null ? '#$classRank' : '-',
+            label: 'Jumlah Siswa Kelas',
+            value: classRank != null ? '$classRank' : '-',
             dark: true,
           ),
         ],
@@ -1208,12 +1107,14 @@ class _InfoCard extends StatelessWidget {
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.phone_rounded,
-            label: student.phone.isNotEmpty ? student.phone : 'Belum ada nomor',
+            title: 'Telepon',
+            value: student.phone.isNotEmpty ? student.phone : 'Belum ada nomor',
           ),
           const SizedBox(height: 10),
           _InfoRow(
             icon: Icons.home_rounded,
-            label: student.address.isNotEmpty
+            title: 'Alamat',
+            value: student.address.isNotEmpty
                 ? student.address
                 : 'Alamat belum diisi',
           ),
@@ -1225,9 +1126,14 @@ class _InfoCard extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String title;
+  final String value;
 
-  const _InfoRow({required this.icon, required this.label});
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1244,12 +1150,27 @@ class _InfoRow extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 15,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -1269,6 +1190,11 @@ class _CriteriaBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (criteria.isEmpty) return const SizedBox.shrink();
+
+    final average = normalized.isEmpty
+        ? 0.0
+        : normalized.fold<double>(0, (a, b) => a + b) / normalized.length;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -1287,12 +1213,22 @@ class _CriteriaBreakdown extends StatelessWidget {
               fontSize: 16,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Rata-rata kriteria: ${(average * 100).toStringAsFixed(1)}%',
+            style: const TextStyle(
+              color: Colors.black54,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 12),
           ...List.generate(criteria.length, (i) {
             final c = criteria[i];
             final value = i < normalized.length ? normalized[i] : 0.0;
+            final tone = _toneForValue(value);
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1311,8 +1247,8 @@ class _CriteriaBreakdown extends StatelessWidget {
                       ),
                       Text(
                         '${(value * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          color: Colors.black54,
+                        style: TextStyle(
+                          color: tone,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1322,11 +1258,11 @@ class _CriteriaBreakdown extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
-                      minHeight: 10,
+                      minHeight: 11,
                       value: value.clamp(0.0, 1.0),
                       backgroundColor: Colors.black.withOpacity(0.06),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.black.withOpacity(0.75),
+                        tone,
                       ),
                     ),
                   ),
@@ -1337,6 +1273,13 @@ class _CriteriaBreakdown extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _toneForValue(double value) {
+    final v = value.clamp(0.0, 1.0);
+    if (v >= 0.85) return Colors.black.withOpacity(0.88);
+    if (v >= 0.65) return Colors.black.withOpacity(0.72);
+    return Colors.black.withOpacity(0.52);
   }
 }
 
@@ -1408,27 +1351,4 @@ class _ScoreEntry {
     required this.totalScore,
     required this.normalized,
   });
-}
-
-class _DotIndicator extends Decoration {
-  const _DotIndicator();
-
-  @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return _DotPainter();
-  }
-}
-
-class _DotPainter extends BoxPainter {
-  @override
-  void paint(Canvas canvas, Offset offset, ImageConfiguration cfg) {
-    final paint = Paint()
-      ..color = Colors.black
-      ..isAntiAlias = true;
-    final circleOffset = Offset(
-      offset.dx + (cfg.size?.width ?? 0) / 2,
-      offset.dy + (cfg.size?.height ?? 0) - 2,
-    );
-    canvas.drawCircle(circleOffset, 3, paint);
-  }
 }

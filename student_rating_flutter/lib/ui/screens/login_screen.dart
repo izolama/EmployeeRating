@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Pendaftaran akun hanya dapat dilakukan oleh admin atausuper admin. '
+                  'Pendaftaran akun hanya dapat dilakukan oleh admin atau super admin. '
                   'Silakan hubungi admin sekolah untuk mendapatkan akses.',
                   style: TextStyle(
                     color: Color(0xFF3A3A3C),

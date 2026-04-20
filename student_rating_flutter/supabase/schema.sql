@@ -65,3 +65,11 @@ alter table public.student
 alter table public.profiles
   add column if not exists student_id text references public.student(student_id);
 create index if not exists profiles_student_id_idx on public.profiles(student_id);
+
+-- Profiles: optional detailed fields for wali/admin operational data.
+alter table public.profiles
+  add column if not exists phone text,
+  add column if not exists address text,
+  add column if not exists identity_number text,
+  add column if not exists gender text,
+  add column if not exists is_active boolean default true;

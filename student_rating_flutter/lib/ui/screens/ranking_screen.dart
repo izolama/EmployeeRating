@@ -3,14 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../data/models/criteria.dart';
 import '../../data/models/ranking.dart';
 import '../../data/services/criteria_service.dart';
 import '../../data/services/student_service.dart';
 import '../../data/services/rating_service.dart';
 import '../../logic/profile_matching.dart';
 import '../widgets/app_shimmer.dart';
-import '../widgets/app_surface.dart';
+import '../widgets/empty_state_card.dart';
 
 class RankingScreen extends StatefulWidget {
   final String? classId;
@@ -70,12 +69,16 @@ class RankingScreenState extends State<RankingScreen> {
     if (_loading) return const _RankingSkeleton();
     if (_error != null) {
       return Center(
-        child: Text('Error: $_error', style: const TextStyle(color: Colors.white)),
+        child:
+            Text('Error: $_error', style: const TextStyle(color: Colors.white)),
       );
     }
     if (_rankings.isEmpty) {
-      return const Center(
-        child: Text('Belum ada data ranking.', style: TextStyle(color: Colors.white)),
+      return const EmptyStateCard(
+        icon: Icons.emoji_events_outlined,
+        title: 'Belum ada data ranking.',
+        subtitle:
+            'Isi nilai siswa terlebih dahulu untuk menghasilkan ranking kelas.',
       );
     }
     final top3 = _rankings.take(3).toList();
@@ -86,8 +89,16 @@ class RankingScreenState extends State<RankingScreen> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _RankingHero(top3: top3),
-          _RankingList(rest: rest, startIndex: 4),
+          _RankingHero(
+            top3: top3,
+            totalStudents: _rankings.length,
+            classId: widget.classId,
+          ),
+          _RankingList(
+            rest: rest,
+            startIndex: 4,
+            classId: widget.classId,
+          ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
         ],
       ),
@@ -104,8 +115,10 @@ class _RankingSkeleton extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       children: [
-        const ShimmerBlock(height: 180, radius: 24, margin: EdgeInsets.only(bottom: 14)),
-        const ShimmerBlock(height: 260, radius: 24, margin: EdgeInsets.only(bottom: 14)),
+        const ShimmerBlock(
+            height: 180, radius: 24, margin: EdgeInsets.only(bottom: 14)),
+        const ShimmerBlock(
+            height: 260, radius: 24, margin: EdgeInsets.only(bottom: 14)),
         ...List.generate(
           4,
           (_) => Padding(
@@ -117,7 +130,8 @@ class _RankingSkeleton extends StatelessWidget {
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     Container(
@@ -191,8 +205,14 @@ class _RankingSkeleton extends StatelessWidget {
 
 class _RankingHero extends StatelessWidget {
   final List<Ranking> top3;
+  final int totalStudents;
+  final String? classId;
 
-  const _RankingHero({required this.top3});
+  const _RankingHero({
+    required this.top3,
+    required this.totalStudents,
+    required this.classId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +238,11 @@ class _RankingHero extends StatelessWidget {
                   const SizedBox(height: 8),
                   _HeaderToggle(),
                   const SizedBox(height: 16),
-                  _InsightBanner(positionText: podium.rank1 != null ? '#${podium.rank1!.position}' : '#-'),
+                  _InsightBanner(
+                    position: podium.rank1?.position,
+                    totalStudents: totalStudents,
+                    classId: classId,
+                  ),
                   const SizedBox(height: 16),
                   _CountdownChip(),
                 ],
@@ -263,11 +287,31 @@ class _HeaderToggle extends StatelessWidget {
 }
 
 class _InsightBanner extends StatelessWidget {
-  final String positionText;
-  const _InsightBanner({required this.positionText});
+  final int? position;
+  final int totalStudents;
+  final String? classId;
+
+  const _InsightBanner({
+    required this.position,
+    required this.totalStudents,
+    required this.classId,
+  });
+
+  int get _betterThanPercent {
+    if (position == null || totalStudents <= 1) return 100;
+    final value = ((totalStudents - position!) / (totalStudents - 1)) * 100;
+    return value.round().clamp(0, 100);
+  }
+
+  String get _classLabel {
+    final id = classId?.trim() ?? '';
+    if (id.isEmpty) return 'kelas Anda';
+    return 'kelas $id';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final positionText = position != null ? '#$position' : '#-';
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: BackdropFilter(
@@ -282,7 +326,8 @@ class _InsightBanner extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(14),
@@ -300,18 +345,18 @@ class _InsightBanner extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      'Kamu lebih baik dari 60%',
-                      style: TextStyle(
+                      'Kamu di atas $_betterThanPercent% siswa',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'performa pemain lainnya.',
-                      style: TextStyle(color: Colors.white70),
+                      'berdasarkan performa SAW di $_classLabel.',
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -341,7 +386,9 @@ class _CountdownChip extends StatelessWidget {
           children: const [
             Icon(Icons.timer, color: Colors.white70, size: 16),
             SizedBox(width: 8),
-            Text('06h 23m', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text('06h 23m',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -390,18 +437,27 @@ class _Podium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final slots = <Widget>[
+      if (podium.rank2 != null) _PodiumColumn(data: podium.rank2, tier: 2),
+      if (podium.rank1 != null) _PodiumColumn(data: podium.rank1, tier: 1),
+      if (podium.rank3 != null) _PodiumColumn(data: podium.rank3, tier: 3),
+    ];
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 30),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _PodiumColumn(data: podium.rank2, tier: 2),
-            _PodiumColumn(data: podium.rank1, tier: 1),
-            _PodiumColumn(data: podium.rank3, tier: 3),
-          ],
+          children: slots
+              .map(
+                (slot) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: slot,
+                ),
+              )
+              .toList(),
         ),
       ],
     );
@@ -428,9 +484,11 @@ class _PodiumColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = data?.name ?? '-';
-    final score = data?.score ?? 0;
-    final position = data?.position ?? tier;
+    if (data == null) return const SizedBox.shrink();
+    final name = data!.name;
+    final score = data!.score;
+    final position = data!.position;
+    final isWinner = tier == 1;
     return Column(
       children: [
         _AvatarBadge(position: position),
@@ -445,11 +503,16 @@ class _PodiumColumn extends StatelessWidget {
           child: Column(
             children: [
               Text(name,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: isWinner ? 18 : 16)),
               const SizedBox(height: 4),
-              Text('${score.toStringAsFixed(3)} pts',
-                  style: const TextStyle(color: Colors.white70)),
+              Text('${score.toStringAsFixed(3)} poin',
+                  style: TextStyle(
+                    color: isWinner ? Colors.white : Colors.white70,
+                    fontWeight: isWinner ? FontWeight.w700 : FontWeight.w500,
+                  )),
             ],
           ),
         ),
@@ -508,13 +571,13 @@ class _AvatarBadge extends StatelessWidget {
           Positioned(
             top: 0,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.amber.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.emoji_events, size: 16, color: Colors.black),
+              child:
+                  const Icon(Icons.emoji_events, size: 16, color: Colors.black),
             ),
           ),
       ],
@@ -548,11 +611,18 @@ class _ArcPainter extends CustomPainter {
 class _RankingList extends StatelessWidget {
   final List<Ranking> rest;
   final int startIndex;
+  final String? classId;
 
-  const _RankingList({required this.rest, required this.startIndex});
+  const _RankingList({
+    required this.rest,
+    required this.startIndex,
+    required this.classId,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final classLabel =
+        (classId?.trim().isNotEmpty ?? false) ? classId!.trim() : 'Anda';
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 0),
       decoration: BoxDecoration(
@@ -566,58 +636,97 @@ class _RankingList extends StatelessWidget {
           ),
         ],
       ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-        itemBuilder: (context, index) {
-          final rank = rest[index];
-          final rankNumber = startIndex + index;
-          return Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.black.withOpacity(0.08),
-                child: Text('$rankNumber',
-                    style: const TextStyle(
-                        color: Colors.black, fontWeight: FontWeight.w700)),
-              ),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.black.withOpacity(0.08),
-                child: const Icon(Icons.person, color: Colors.black87),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rank.studentName,
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15.5),
+      child: rest.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Daftar Peringkat Kelas',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
                     ),
-                    const SizedBox(height: 4),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.black.withOpacity(0.06)),
+                    ),
+                    child: Text(
+                      'Belum ada siswa lain di kelas $classLabel.',
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+              itemBuilder: (context, index) {
+                final rank = rest[index];
+                final rankNumber = startIndex + index;
+                return Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.black.withOpacity(0.08),
+                      child: Text('$rankNumber',
+                          style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: 12),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.black.withOpacity(0.08),
+                      child: const Icon(Icons.person, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rank.studentName,
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15.5),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${rank.totalScore.toStringAsFixed(3)} poin',
+                            style: const TextStyle(color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ),
                     Text(
-                      '${rank.totalScore.toStringAsFixed(3)} pts',
-                      style: const TextStyle(color: Colors.black54),
+                      'K1 ${rank.k1.toStringAsFixed(1)}',
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 12),
                     ),
                   ],
-                ),
-              ),
-              Text(
-                'K1 ${rank.k1.toStringAsFixed(1)}',
-                style: const TextStyle(color: Colors.black54, fontSize: 12),
-              ),
-            ],
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemCount: rest.length,
-      ),
+                );
+              },
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemCount: rest.length,
+            ),
     );
   }
 }
